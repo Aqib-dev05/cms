@@ -1,0 +1,1012 @@
+// ============================================================
+//  COLLEGE MANAGEMENT SYSTEM — PRISMA SCHEMA
+//  Database: PostgreSQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum RoleName {
+  ADMIN
+  HOD
+  TEACHER
+  HEAD_CLERK
+  CLERK
+  COMPLAINT_OFFICER
+  LIBRARIAN
+  STUDENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum StaffStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  RESIGNED
+  RETIRED
+}
+
+enum StudentStatus {
+  ACTIVE
+  GRADUATED
+  SUSPENDED
+  EXPELLED
+  ON_LEAVE
+  DROPPED_OUT
+  ALUMNI
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  APPROVED
+  REJECTED
+  WAITLISTED
+  FEE_PENDING
+  ENROLLED
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum FeeStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  WAIVED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  ONLINE
+  CHEQUE
+}
+
+enum BookStatus {
+  AVAILABLE
+  ISSUED
+  RESERVED
+  LOST
+  DAMAGED
+  UNDER_REPAIR
+}
+
+enum NoticeAudience {
+  ALL
+  STUDENTS
+  STAFF
+  DEPARTMENT
+  PROGRAM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+enum ResourceType {
+  IMAGE
+  DOCUMENT
+  VIDEO
+  AUDIO
+  OTHER
+}
+
+enum SemesterType {
+  FALL
+  SPRING
+  SUMMER
+}
+
+enum ExamType {
+  MIDTERM
+  FINAL
+  QUIZ
+  ASSIGNMENT
+  LAB
+  PROJECT
+  SESSIONAL
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 01 — AUTH & USERS
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  email        String    @unique
+  collegeEmail String?   @unique
+  passwordHash String
+  roleId       String
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  role            Role             @relation(fields: [roleId], references: [id])
+  staffProfile    StaffProfile?
+  studentProfile  StudentProfile?
+  refreshTokens   RefreshToken[]
+  userPermissions UserPermission[]
+  auditLogs       AuditLog[]
+  notifications   NotificationRecipient[]
+  notices         Notice[]
+  complaints      Complaint[]      @relation("ComplaintCreator")
+  uploadedMedia   Media[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  displayName String
+  description String?
+
+  users       User[]
+  permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid())
+  code        String @unique
+  module      String
+  action      String
+  description String?
+
+  roles RolePermission[]
+  users UserPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+  granted      Boolean @default(true)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model StaffProfile {
+  id             String      @id @default(uuid())
+  userId         String      @unique
+  employeeId     String      @unique
+  firstName      String
+  lastName       String
+  fatherName     String?
+  gender         Gender?
+  dateOfBirth    DateTime?
+  cnic           String?     @unique
+  phone          String?
+  address        String?
+  designation    String?
+  qualification  String?
+  status         StaffStatus @default(ACTIVE)
+  joiningDate    DateTime
+  leavingDate    DateTime?
+  departmentId   String?
+  profileMediaId String?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id])
+  media      Media?      @relation("StaffProfileMedia", fields: [profileMediaId], references: [id])
+
+  courseTeachers CourseTeacher[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("staff_profiles")
+}
+
+model StudentProfile {
+  id               String        @id @default(uuid())
+  userId           String        @unique
+  registrationNo   String        @unique
+  firstName        String
+  lastName         String
+  fatherName       String?
+  gender           Gender?
+  dateOfBirth      DateTime?
+  cnic             String?       @unique
+  phone            String?
+  personalEmail    String?
+  address          String?
+  status           StudentStatus @default(ACTIVE)
+  enrollmentDate   DateTime
+  graduationDate   DateTime?
+  currentSemester  Int?
+  programId        String
+  profileMediaId   String?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id])
+  media   Media?  @relation("StudentProfileMedia", fields: [profileMediaId], references: [id])
+
+  enrollments       Enrollment[]
+  attendanceRecords AttendanceRecord[]
+  examResults       ExamResult[]
+  feeInvoices       FeeInvoice[]
+  bookIssues        BookIssue[]
+  complaints        Complaint[]   @relation("StudentComplaints")
+  application       Application?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("student_profiles")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  deviceInfo String?
+  ipAddress  String?
+  expiresAt  DateTime
+  isRevoked  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  module    String
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 02 — ACADEMIC STRUCTURE
+//  College → Department → Program → AcademicSession
+//  → Semester → Course → Section → Enrollment
+// ─────────────────────────────────────────────────────────────
+
+model Department {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  code        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  headId String? @unique // HOD user id
+
+  programs      Program[]
+  staffProfiles StaffProfile[]
+  courses       Course[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("departments")
+}
+
+model Program {
+  id           String  @id @default(uuid())
+  name         String
+  code         String  @unique
+  description  String?
+  durationYears Int    @default(4)
+  totalSemesters Int   @default(8)
+  isActive     Boolean @default(true)
+  departmentId String
+
+  department      Department       @relation(fields: [departmentId], references: [id])
+  studentProfiles StudentProfile[]
+  academicSessions AcademicSession[]
+  feeStructures   FeeStructure[]
+  applications    Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("programs")
+}
+
+model AcademicSession {
+  id        String  @id @default(uuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean @default(false)
+  programId String
+
+  program   Program    @relation(fields: [programId], references: [id])
+  semesters Semester[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("academic_sessions")
+}
+
+model Semester {
+  id                String       @id @default(uuid())
+  semesterNumber    Int
+  type              SemesterType
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean      @default(false)
+  academicSessionId String
+
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  courses         Course[]        @relation("SemesterCourses")
+  sections        Section[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("semesters")
+}
+
+model Course {
+  id           String  @id @default(uuid())
+  name         String
+  code         String  @unique
+  creditHours  Int     @default(3)
+  description  String?
+  isElective   Boolean @default(false)
+  isActive     Boolean @default(true)
+  departmentId String
+
+  department Department @relation(fields: [departmentId], references: [id])
+  semesters  Semester[] @relation("SemesterCourses")
+  sections   Section[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("courses")
+}
+
+model Section {
+  id         String  @id @default(uuid())
+  name       String
+  capacity   Int     @default(40)
+  courseId   String
+  semesterId String
+
+  course    Course   @relation(fields: [courseId], references: [id])
+  semester  Semester @relation(fields: [semesterId], references: [id])
+
+  teachers            CourseTeacher[]
+  enrollments         Enrollment[]
+  timetableSlots      TimetableSlot[]
+  attendanceSessions  AttendanceSession[]
+  exams               Exam[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([courseId, semesterId, name])
+  @@map("sections")
+}
+
+model CourseTeacher {
+  sectionId      String
+  staffProfileId String
+  isPrimary      Boolean @default(true)
+
+  section      Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  staffProfile StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  @@id([sectionId, staffProfileId])
+  @@map("course_teachers")
+}
+
+model Enrollment {
+  id               String  @id @default(uuid())
+  studentProfileId String
+  sectionId        String
+  isActive         Boolean @default(true)
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  section        Section        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([studentProfileId, sectionId])
+  @@map("enrollments")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 03 — TIMETABLE
+// ─────────────────────────────────────────────────────────────
+
+model TimetableSlot {
+  id        String @id @default(uuid())
+  sectionId String
+  dayOfWeek Int    // 1=Monday ... 6=Saturday
+  startTime String // "08:00"
+  endTime   String // "09:30"
+  room      String?
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("timetable_slots")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 04 — ATTENDANCE
+// ─────────────────────────────────────────────────────────────
+
+model AttendanceSession {
+  id        String   @id @default(uuid())
+  sectionId String
+  date      DateTime @db.Date
+  topic     String?
+  markedById String
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  records AttendanceRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sectionId, date])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id                  String           @id @default(uuid())
+  attendanceSessionId String
+  studentProfileId    String
+  status              AttendanceStatus @default(PRESENT)
+  remarks             String?
+
+  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  studentProfile    StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attendanceSessionId, studentProfileId])
+  @@map("attendance_records")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 05 — EXAMS & GRADING
+// ─────────────────────────────────────────────────────────────
+
+model Exam {
+  id          String   @id @default(uuid())
+  title       String
+  type        ExamType
+  sectionId   String
+  totalMarks  Float
+  passingMarks Float
+  date        DateTime?
+  duration    Int?     // minutes
+  instructions String?
+  isPublished Boolean  @default(false)
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  results ExamResult[]
+  media   ExamMedia[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("exams")
+}
+
+model ExamResult {
+  id               String  @id @default(uuid())
+  examId           String
+  studentProfileId String
+  marksObtained    Float
+  isAbsent         Boolean @default(false)
+  remarks          String?
+  isPublished      Boolean @default(false)
+
+  exam           Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, studentProfileId])
+  @@map("exam_results")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 06 — FINANCE / FEES
+// ─────────────────────────────────────────────────────────────
+
+model FeeType {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  feeStructureItems FeeStructureItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fee_types")
+}
+
+model FeeStructure {
+  id        String   @id @default(uuid())
+  name      String
+  programId String
+  session   String
+  isActive  Boolean  @default(true)
+
+  program Program            @relation(fields: [programId], references: [id])
+  items   FeeStructureItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fee_structures")
+}
+
+model FeeStructureItem {
+  id             String @id @default(uuid())
+  feeStructureId String
+  feeTypeId      String
+  amount         Float
+  isRequired     Boolean @default(true)
+
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  feeType      FeeType      @relation(fields: [feeTypeId], references: [id])
+
+  @@map("fee_structure_items")
+}
+
+model FeeInvoice {
+  id               String    @id @default(uuid())
+  invoiceNo        String    @unique
+  studentProfileId String
+  feeStructureId   String?
+  totalAmount      Float
+  discountAmount   Float     @default(0)
+  paidAmount       Float     @default(0)
+  dueAmount        Float
+  status           FeeStatus @default(UNPAID)
+  dueDate          DateTime
+  issuedAt         DateTime  @default(now())
+  semester         String?
+  remarks          String?
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  payments       FeePayment[]
+  discounts      FeeDiscount[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fee_invoices")
+}
+
+model FeePayment {
+  id            String        @id @default(uuid())
+  invoiceId     String
+  amount        Float
+  method        PaymentMethod
+  transactionId String?
+  paidAt        DateTime      @default(now())
+  receivedById  String?
+  remarks       String?
+
+  invoice FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("fee_payments")
+}
+
+model FeeDiscount {
+  id        String @id @default(uuid())
+  invoiceId String
+  reason    String
+  amount    Float
+  approvedById String?
+
+  invoice FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("fee_discounts")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 07 — LIBRARY
+// ─────────────────────────────────────────────────────────────
+
+model Book {
+  id          String  @id @default(uuid())
+  title       String
+  author      String
+  isbn        String? @unique
+  publisher   String?
+  edition     String?
+  year        Int?
+  category    String?
+  totalCopies Int     @default(1)
+  isActive    Boolean @default(true)
+
+  copies BookCopy[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("books")
+}
+
+model BookCopy {
+  id         String     @id @default(uuid())
+  bookId     String
+  copyNumber String
+  status     BookStatus @default(AVAILABLE)
+  location   String?
+
+  book   Book        @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  issues BookIssue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bookId, copyNumber])
+  @@map("book_copies")
+}
+
+model BookIssue {
+  id               String    @id @default(uuid())
+  bookCopyId       String
+  studentProfileId String
+  issuedAt         DateTime  @default(now())
+  dueDate          DateTime
+  returnedAt       DateTime?
+  fine             Float     @default(0)
+  finePaid         Boolean   @default(false)
+  issuedById       String?
+  returnedById     String?
+
+  bookCopy       BookCopy       @relation(fields: [bookCopyId], references: [id])
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("book_issues")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 08 — COMPLAINTS / GRIEVANCE
+// ─────────────────────────────────────────────────────────────
+
+model ComplaintCategory {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  routeToRole RoleName
+
+  complaints Complaint[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("complaint_categories")
+}
+
+model Complaint {
+  id               String          @id @default(uuid())
+  title            String
+  description      String
+  status           ComplaintStatus @default(SUBMITTED)
+  categoryId       String
+  createdById      String
+  studentProfileId String?
+  assignedToId     String?
+
+  category       ComplaintCategory @relation(fields: [categoryId], references: [id])
+  createdBy      User              @relation("ComplaintCreator", fields: [createdById], references: [id])
+  studentProfile StudentProfile?   @relation("StudentComplaints", fields: [studentProfileId], references: [id])
+
+  comments       ComplaintComment[]
+  attachments    ComplaintMedia[]
+  statusHistory  ComplaintStatusHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("complaints")
+}
+
+model ComplaintComment {
+  id          String @id @default(uuid())
+  complaintId String
+  authorId    String
+  content     String
+  isInternal  Boolean @default(false)
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("complaint_comments")
+}
+
+model ComplaintStatusHistory {
+  id          String          @id @default(uuid())
+  complaintId String
+  fromStatus  ComplaintStatus?
+  toStatus    ComplaintStatus
+  changedById String
+  note        String?
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("complaint_status_history")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 09 — NOTICE BOARD
+// ─────────────────────────────────────────────────────────────
+
+model Notice {
+  id           String         @id @default(uuid())
+  title        String
+  content      String
+  category     String?
+  audience     NoticeAudience @default(ALL)
+  departmentId String?
+  programId    String?
+  publishedAt  DateTime?
+  expiresAt    DateTime?
+  isPublished  Boolean        @default(false)
+  createdById  String
+
+  createdBy User         @relation(fields: [createdById], references: [id])
+  media     NoticeMedia[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notices")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 10 — ONLINE ADMISSIONS
+// ─────────────────────────────────────────────────────────────
+
+model Application {
+  id               String            @id @default(uuid())
+  applicationNo    String            @unique
+  programId        String
+  firstName        String
+  lastName         String
+  fatherName       String?
+  email            String
+  phone            String?
+  cnic             String?
+  gender           Gender?
+  dateOfBirth      DateTime?
+  address          String?
+  status           ApplicationStatus @default(DRAFT)
+  submittedAt      DateTime?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  remarks          String?
+  studentProfileId String?           @unique
+
+  program        Program         @relation(fields: [programId], references: [id])
+  studentProfile StudentProfile? @relation(fields: [studentProfileId], references: [id])
+
+  documents     ApplicationMedia[]
+  statusHistory ApplicationStatusHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("applications")
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(uuid())
+  applicationId String
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  changedById   String?
+  note          String?
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("application_status_history")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 11 — NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String              @id @default(uuid())
+  title     String
+  body      String
+  channel   NotificationChannel @default(IN_APP)
+  data      Json?
+
+  recipients NotificationRecipient[]
+
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model NotificationRecipient {
+  id             String   @id @default(uuid())
+  notificationId String
+  userId         String
+  isRead         Boolean  @default(false)
+  readAt         DateTime?
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([notificationId, userId])
+  @@map("notification_recipients")
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MODULE 12 — MEDIA (Central file storage)
+//  One central media table. Module-specific junction tables.
+// ─────────────────────────────────────────────────────────────
+
+model Media {
+  id           String       @id @default(uuid())
+  fileName     String
+  originalName String
+  fileUrl      String
+  publicId     String?
+  resourceType ResourceType @default(DOCUMENT)
+  mimeType     String
+  fileSize     Int
+  storage      String       @default("cloudinary")
+  uploadedById String
+
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
+
+  staffProfileMedia  StaffProfile[]   @relation("StaffProfileMedia")
+  studentProfileMedia StudentProfile[] @relation("StudentProfileMedia")
+  examMedia          ExamMedia[]
+  noticeMedia        NoticeMedia[]
+  complaintMedia     ComplaintMedia[]
+  applicationMedia   ApplicationMedia[]
+
+  createdAt DateTime @default(now())
+
+  @@map("media")
+}
+
+// Junction tables — media associations
+
+model ExamMedia {
+  examId  String
+  mediaId String
+
+  exam  Exam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([examId, mediaId])
+  @@map("exam_media")
+}
+
+model NoticeMedia {
+  noticeId String
+  mediaId  String
+
+  notice Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  media  Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([noticeId, mediaId])
+  @@map("notice_media")
+}
+
+model ComplaintMedia {
+  complaintId String
+  mediaId     String
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  media     Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([complaintId, mediaId])
+  @@map("complaint_media")
+}
+
+model ApplicationMedia {
+  applicationId String
+  mediaId       String
+  documentType  String?
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  media       Media       @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, mediaId])
+  @@map("application_media")
+}
