@@ -46,7 +46,7 @@ const listQuerySchema = z.object({
   limit:     z.string().default("20"),
   programId: z.string().uuid().optional(),
   semesterId: z.string().uuid().optional(),
-  status:    z.string().optional(),
+  status:    z.enum(svc.STUDENT_STATUSES).optional(),
   search:    z.string().optional(),
 });
 

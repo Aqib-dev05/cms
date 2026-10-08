@@ -61,34 +61,48 @@ const STUDENT_SELECT = {
 //  QUERIES
 // ─────────────────────────────────────────────────────────────
 
+export const STUDENT_STATUSES = [
+  "ACTIVE", "GRADUATED", "SUSPENDED", "EXPELLED", "ON_LEAVE", "DROPPED_OUT", "ALUMNI",
+] as const;
+export type StudentStatusValue = (typeof STUDENT_STATUSES)[number];
+
 export async function getStudents(params: {
   page: number;
   limit: number;
   programId?:   string;
   semesterId?:  string;
-  status?:      string;
+  status?:      StudentStatusValue;
   search?:      string;
 }) {
   const { page, limit, programId, semesterId, status, search } = params;
   const skip = (page - 1) * limit;
 
+  // All profile filters live in ONE object — spreading several `studentProfile`
+  // keys would let the last one silently overwrite the others.
+  const profileWhere = {
+    ...(status && { status }),
+    ...(programId && { programId }),
+    ...(semesterId && {
+      enrollments: { some: { section: { semesterId }, isActive: true } },
+    }),
+  };
+
+  // Every word must match something, so "ayesha khan" finds first + last name.
+  const terms = (search ?? "").split(/\s+/).filter(Boolean);
+
   const where = {
     role: { name: "STUDENT" as const },
-    ...(status && { studentProfile: { status: status as "ACTIVE" } }),
-    ...(programId && { studentProfile: { programId } }),
-    ...(semesterId && {
-      studentProfile: {
-        enrollments: { some: { section: { semesterId }, isActive: true } },
-      },
-    }),
-    ...(search && {
-      OR: [
-        { username: { contains: search, mode: "insensitive" as const } },
-        { studentProfile: { registrationNo: { contains: search, mode: "insensitive" as const } } },
-        { studentProfile: { firstName:     { contains: search, mode: "insensitive" as const } } },
-        { studentProfile: { lastName:      { contains: search, mode: "insensitive" as const } } },
-        { studentProfile: { cnic:          { contains: search, mode: "insensitive" as const } } },
-      ],
+    ...(Object.keys(profileWhere).length > 0 && { studentProfile: profileWhere }),
+    ...(terms.length > 0 && {
+      AND: terms.map((term) => ({
+        OR: [
+          { username: { contains: term, mode: "insensitive" as const } },
+          { studentProfile: { registrationNo: { contains: term, mode: "insensitive" as const } } },
+          { studentProfile: { firstName:      { contains: term, mode: "insensitive" as const } } },
+          { studentProfile: { lastName:       { contains: term, mode: "insensitive" as const } } },
+          { studentProfile: { cnic:           { contains: term, mode: "insensitive" as const } } },
+        ],
+      })),
     }),
   };
 

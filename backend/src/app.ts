@@ -26,6 +26,7 @@ import notificationsRoutes from "./modules/notifications/notifications.routes";
 import mediaRoutes         from "./modules/media/media.routes";
 import auditRoutes         from "./modules/audit/audit.routes";
 import pdfRoutes           from "./modules/pdf/pdf.routes";
+import analyticsRoutes     from "./modules/analytics/analytics.routes";
 
 const app = express();
 
@@ -75,7 +76,7 @@ app.get("/health", (_req, res) => {
       "auth","users","staff","academic","students",
       "timetable","attendance","exams","finance","library",
       "complaints","notices","admissions","notifications",
-      "media","audit","pdf",
+      "media","audit","pdf","analytics",
     ],
   });
 });
@@ -100,6 +101,7 @@ app.use(`${API}/notifications`,  notificationsRoutes);
 app.use(`${API}/media`,          mediaRoutes);
 app.use(`${API}/audit`,          auditRoutes);
 app.use(`${API}/pdf`,            pdfRoutes);
+app.use(`${API}/analytics`,      analyticsRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────
 app.use((_req, res) => {

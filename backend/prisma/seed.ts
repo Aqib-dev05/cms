@@ -97,6 +97,7 @@ const PERMISSIONS = [
   // Audit
   { code: "audit.read",   module: "audit", action: "read"   },
   { code: "audit.manage", module: "audit", action: "manage" },
+  { code: "analytics.read", module: "analytics", action: "read" },
 ];
 
 // ─── Role → Permission map ────────────────────────────────────
