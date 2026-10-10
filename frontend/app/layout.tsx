@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 // Applies the saved accent before first paint so there's no colour flash.
-const accentScript = `try{var a=JSON.parse(localStorage.getItem("cms-ui")||"{}").accent;if(a==="forest"||a==="mint")document.documentElement.dataset.accent=a}catch(e){}`;
+const accentScript = `try{var a=JSON.parse(localStorage.getItem("cms-ui")||"{}").accent;if(a==="blue"||a==="red")document.documentElement.dataset.accent=a}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

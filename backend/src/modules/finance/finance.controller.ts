@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asyncHandler } from "../../utils/async-handler";
 import { ApiRes, getPaginationParams, buildPaginationMeta } from "../../utils/response";
 import { AppError } from "../../utils/app-error";
+import { ownStudentProfileId } from "../../utils/student-scope";
 import * as svc from "./finance.service";
 
 const feeTypeSchema = z.object({
@@ -71,16 +72,36 @@ export const createFeeStructure = asyncHandler(async (req: Request, res: Respons
 
 // Invoices
 export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
   const { page, limit } = getPaginationParams(req.query as Record<string, string>);
+
+  // Students only ever see their own invoices, whatever filter they send
+  let studentProfileId = req.query.studentProfileId as string | undefined;
+  if (req.user.roleName === "STUDENT") {
+    const own = await ownStudentProfileId(req.user.userId);
+    if (!own) {
+      ApiRes.paginated(res, [], buildPaginationMeta(0, page, limit));
+      return;
+    }
+    studentProfileId = own;
+  }
+
   const { invoices, total } = await svc.getInvoices({
     page, limit,
-    studentProfileId: req.query.studentProfileId as string | undefined,
+    studentProfileId,
     status:           req.query.status           as string | undefined,
   });
   ApiRes.paginated(res, invoices, buildPaginationMeta(total, page, limit));
 });
 export const getInvoice = asyncHandler(async (req: Request, res: Response) => {
-  ApiRes.success(res, await svc.getInvoiceById(req.params.id));
+  if (!req.user) throw AppError.unauthorized();
+  const invoice = await svc.getInvoiceById(req.params.id);
+  if (req.user.roleName === "STUDENT") {
+    const own = await ownStudentProfileId(req.user.userId);
+    // 404 (not 403) so invoice ids can't be probed
+    if (!own || invoice.studentProfileId !== own) throw AppError.notFound("Invoice not found");
+  }
+  ApiRes.success(res, invoice);
 });
 export const createInvoice = asyncHandler(async (req: Request, res: Response) => {
   ApiRes.created(res, await svc.createInvoice(invoiceSchema.parse(req.body)), "Invoice created");
@@ -109,5 +130,9 @@ export const getMyFinance = asyncHandler(async (req: Request, res: Response) => 
   ApiRes.success(res, await svc.getStudentFinanceSummary(req.user.userId));
 });
 export const getStudentFinance = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  if (req.user.roleName === "STUDENT" && req.user.userId !== req.params.userId) {
+    throw AppError.forbidden("You can only view your own fee details");
+  }
   ApiRes.success(res, await svc.getStudentFinanceSummary(req.params.userId));
 });

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CalendarCheck, ClipboardList, TriangleAlert } from "lucide-react";
 import { useWorkableSections } from "@/features/staff/hooks";
+import { useRole } from "@/hooks/use-role";
 import { getErrorMessage } from "@/lib/api";
 import { formatDate, formatPercent } from "@/lib/format";
 import { DataTable, type Column } from "@/components/shared/data-table";
@@ -18,14 +19,16 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAttendanceSession, useMarkAttendance, useSectionSessions, useSectionSummary, useUpdateRecord } from "../hooks";
-import { AT_RISK_THRESHOLD, type AttendanceSessionListItem, type AttendanceStatus, type SectionSummaryRow } from "../types";
+import { AT_RISK_THRESHOLD, TEACHER_EDIT_WINDOW_DAYS, isOutsideTeacherWindow, type AttendanceSessionListItem, type AttendanceStatus, type SectionSummaryRow } from "../types";
 import { StatusToggle } from "./status-toggle";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const daysAgoISO = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
 
 function MarkTab({ sectionId, onSaved }: { sectionId: string; onSaved: () => void }) {
   const summary = useSectionSummary(sectionId);
   const mark = useMarkAttendance();
+  const { role } = useRole();
   const [date, setDate] = useState(todayISO());
   const [topic, setTopic] = useState("");
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({});
@@ -61,7 +64,7 @@ function MarkTab({ sectionId, onSaved }: { sectionId: string; onSaved: () => voi
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
         <div className="space-y-2">
           <Label htmlFor="att-date">Date</Label>
-          <Input id="att-date" type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} required />
+          <Input id="att-date" type="date" value={date} max={todayISO()} min={role === "TEACHER" ? daysAgoISO(TEACHER_EDIT_WINDOW_DAYS) : undefined} onChange={(e) => setDate(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <Label htmlFor="att-topic">Topic (optional)</Label>
@@ -116,12 +119,19 @@ function MarkTab({ sectionId, onSaved }: { sectionId: string; onSaved: () => voi
 function SessionDialog({ sessionId, onOpenChange }: { sessionId: string; onOpenChange: (o: boolean) => void }) {
   const q = useAttendanceSession(sessionId);
   const update = useUpdateRecord();
+  const { role } = useRole();
+  // Teachers can only correct recent sessions; HOD / Admin can fix any date
+  const locked = role === "TEACHER" && !!q.data && isOutsideTeacherWindow(q.data.date);
   return (
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{q.data ? `${q.data.section.course.code} · ${formatDate(q.data.date)}` : "Attendance session"}</DialogTitle>
-          <DialogDescription>{q.data?.topic ?? "Tap a letter to correct a record — it saves immediately."}</DialogDescription>
+          <DialogDescription>
+            {locked
+              ? `Read-only: teachers can change attendance up to ${TEACHER_EDIT_WINDOW_DAYS} days back. Ask your HOD or an admin to correct this session.`
+              : q.data?.topic ?? "Tap a letter to correct a record — it saves immediately."}
+          </DialogDescription>
         </DialogHeader>
         {q.isLoading ? (
           <Skeleton className="h-48" />
@@ -137,7 +147,7 @@ function SessionDialog({ sessionId, onOpenChange }: { sessionId: string; onOpenC
                     <p className="truncate text-sm font-medium">{name}</p>
                     <p className="text-xs text-muted-foreground tabular-nums">{r.studentProfile.registrationNo}</p>
                   </div>
-                  <StatusToggle label={name} value={r.status} disabled={update.isPending} onChange={(status) => status !== r.status && update.mutate({ recordId: r.id, status })} />
+                  <StatusToggle label={name} value={r.status} disabled={update.isPending || locked} onChange={(status) => status !== r.status && update.mutate({ recordId: r.id, status })} />
                 </li>
               );
             })}

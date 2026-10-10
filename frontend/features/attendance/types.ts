@@ -1,5 +1,13 @@
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 export const AT_RISK_THRESHOLD = 75;
+/** Teachers may mark / correct attendance only this many days back (HOD + Admin: no limit). Mirrors the backend. */
+export const TEACHER_EDIT_WINDOW_DAYS = 7;
+
+/** True when a teacher can no longer change a session held on `date` (ISO string). */
+export function isOutsideTeacherWindow(date: string, now: Date = new Date()): boolean {
+  const cutoff = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - TEACHER_EDIT_WINDOW_DAYS * 86_400_000;
+  return new Date(date).getTime() < cutoff;
+}
 
 export interface PersonRef {
   registrationNo: string;

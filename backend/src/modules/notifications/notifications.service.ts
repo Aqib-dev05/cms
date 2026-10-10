@@ -1,3 +1,4 @@
+import type { Prisma, RoleName } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { emitToUser, SOCKET_EVENTS } from "../../lib/socket";
 import { AppError } from "../../utils/app-error";
@@ -18,7 +19,7 @@ export async function sendNotification(dto: SendNotificationDto) {
       title:   dto.title,
       body:    dto.body,
       channel: dto.channel ?? "IN_APP",
-      data:    dto.data ?? {},
+      data:    (dto.data ?? {}) as Prisma.InputJsonObject,
       recipients: {
         create: dto.recipientIds.map((userId) => ({ userId })),
       },
@@ -41,7 +42,7 @@ export async function sendNotification(dto: SendNotificationDto) {
 
 export async function sendToRole(
   dto: Omit<SendNotificationDto, "recipientIds">,
-  roleName: string
+  roleName: RoleName
 ) {
   const users = await prisma.user.findMany({
     where: { role: { name: roleName }, isActive: true },

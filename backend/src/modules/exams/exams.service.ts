@@ -42,12 +42,18 @@ export async function getExams(params: {
   sectionId?:  string;
   semesterId?: string;
   type?:       string;
+  /** set for students: only published exams of sections they are enrolled in */
+  studentUserId?: string;
 }) {
   return prisma.exam.findMany({
     where: {
       ...(params.sectionId  && { sectionId: params.sectionId }),
       ...(params.semesterId && { section: { semesterId: params.semesterId } }),
       ...(params.type       && { type: params.type as "MIDTERM" }),
+      ...(params.studentUserId && {
+        isPublished: true,
+        AND: [{ section: { enrollments: { some: { isActive: true, studentProfile: { userId: params.studentUserId } } } } }],
+      }),
     },
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
     include: {
@@ -62,7 +68,7 @@ export async function getExams(params: {
   });
 }
 
-export async function getExamById(id: string) {
+export async function getExamById(id: string, studentUserId?: string) {
   const exam = await prisma.exam.findUnique({
     where: { id },
     include: {
@@ -87,6 +93,21 @@ export async function getExamById(id: string) {
     },
   });
   if (!exam) throw AppError.notFound("Exam not found");
+
+  if (studentUserId) {
+    // Student view: published exam of a section they attend, and only their own published result
+    const enrolled = await prisma.enrollment.findFirst({
+      where: { sectionId: exam.sectionId, isActive: true, studentProfile: { userId: studentUserId } },
+      select: { studentProfileId: true },
+    });
+    if (!exam.isPublished || !enrolled) throw AppError.notFound("Exam not found");
+    return {
+      ...exam,
+      results: exam.results.filter(
+        (r: { studentProfileId: string; isPublished: boolean }) => r.studentProfileId === enrolled.studentProfileId && r.isPublished
+      ),
+    };
+  }
   return exam;
 }
 

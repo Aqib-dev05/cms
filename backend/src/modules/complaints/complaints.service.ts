@@ -64,7 +64,12 @@ export async function getComplaints(params: {
   return { complaints, total };
 }
 
-export async function getComplaintById(id: string) {
+export interface ComplaintActor {
+  userId:   string;
+  roleName: string;
+}
+
+export async function getComplaintById(id: string, actor?: ComplaintActor) {
   const complaint = await prisma.complaint.findUnique({
     where: { id },
     include: {
@@ -83,6 +88,13 @@ export async function getComplaintById(id: string) {
     },
   });
   if (!complaint) throw AppError.notFound("Complaint not found");
+
+  if (actor?.roleName === "STUDENT") {
+    // Students only see their own complaints, and never internal staff notes.
+    // 404 (not 403) so complaint ids can't be probed.
+    if (complaint.createdById !== actor.userId) throw AppError.notFound("Complaint not found");
+    return { ...complaint, comments: complaint.comments.filter((c: { isInternal: boolean }) => !c.isInternal) };
+  }
   return complaint;
 }
 
@@ -176,17 +188,21 @@ export async function updateComplaintStatus(id: string, dto: UpdateStatusDto, ch
   return prisma.complaint.findUnique({ where: { id } });
 }
 
-export async function addComment(id: string, dto: AddCommentDto, authorId: string) {
+export async function addComment(id: string, dto: AddCommentDto, actor: ComplaintActor) {
+  const authorId = actor.userId;
   const complaint = await prisma.complaint.findUnique({ where: { id } });
   if (!complaint) throw AppError.notFound("Complaint not found");
   if (complaint.status === "CLOSED") throw AppError.badRequest("Cannot comment on a closed complaint");
+
+  const isStudent = actor.roleName === "STUDENT";
+  if (isStudent && complaint.createdById !== authorId) throw AppError.notFound("Complaint not found");
 
   return prisma.complaintComment.create({
     data: {
       complaintId: id,
       authorId,
       content:    dto.content,
-      isInternal: dto.isInternal,
+      isInternal: isStudent ? false : dto.isInternal,
     },
   });
 }

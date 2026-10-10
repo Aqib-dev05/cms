@@ -152,7 +152,9 @@ export async function getStudentById(id: string) {
   });
 
   if (!student || student.studentProfile === null) throw AppError.notFound("Student not found");
-  return student;
+  // `include` returns every user column — never send the password hash out
+  const { passwordHash: _passwordHash, ...safeStudent } = student;
+  return safeStudent;
 }
 
 export async function getStudentByRegNo(registrationNo: string) {

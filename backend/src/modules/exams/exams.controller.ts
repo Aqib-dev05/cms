@@ -32,7 +32,9 @@ const bulkResultSchema = z.object({
 });
 
 export const getExams = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
   const data = await svc.getExams({
+    studentUserId: req.user.roleName === "STUDENT" ? req.user.userId : undefined,
     sectionId:  req.query.sectionId  as string | undefined,
     semesterId: req.query.semesterId as string | undefined,
     type:       req.query.type       as string | undefined,
@@ -41,7 +43,8 @@ export const getExams = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getExam = asyncHandler(async (req: Request, res: Response) => {
-  const data = await svc.getExamById(req.params.id);
+  if (!req.user) throw AppError.unauthorized();
+  const data = await svc.getExamById(req.params.id, req.user.roleName === "STUDENT" ? req.user.userId : undefined);
   ApiRes.success(res, data);
 });
 
@@ -104,6 +107,10 @@ export const getMyGrades = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getStudentGrades = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  if (req.user.roleName === "STUDENT" && req.user.userId !== req.params.userId) {
+    throw AppError.forbidden("You can only view your own grades");
+  }
   const data = await svc.getStudentGradeReport(
     req.params.userId,
     req.query.semesterId as string | undefined

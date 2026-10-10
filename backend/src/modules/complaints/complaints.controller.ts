@@ -47,7 +47,8 @@ export const getComplaints = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const getComplaint = asyncHandler(async (req: Request, res: Response) => {
-  const data = await svc.getComplaintById(req.params.id);
+  if (!req.user) throw AppError.unauthorized();
+  const data = await svc.getComplaintById(req.params.id, req.user);
   ApiRes.success(res, data);
 });
 
@@ -72,7 +73,7 @@ export const updateStatus = asyncHandler(async (req: Request, res: Response) => 
 export const addComment = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw AppError.unauthorized();
   const dto = commentSchema.parse(req.body);
-  ApiRes.created(res, await svc.addComment(req.params.id, dto, req.user.userId), "Comment added");
+  ApiRes.created(res, await svc.addComment(req.params.id, dto, req.user), "Comment added");
 });
 
 export const getStats = asyncHandler(async (_req: Request, res: Response) => {

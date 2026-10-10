@@ -1,5 +1,6 @@
 import { PrismaClient, RoleName } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDemoData } from "./seed-demo";
 
 const prisma = new PrismaClient();
 
@@ -111,8 +112,9 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     "section.read", "section.manage",
     "timetable.read", "timetable.manage",
     "student.read", "staff.read", "staff.create", "staff.update",
-    "attendance.read", "attendance.manage",
-    "exam.read", "exam.manage", "grade.read", "grade.manage",
+    "attendance.read", "attendance.create", "attendance.update", "attendance.manage",
+    "exam.read", "exam.create", "exam.manage",
+    "grade.read", "grade.create", "grade.update", "grade.manage",
     "complaint.read", "complaint.assign", "complaint.resolve",
     "notice.read", "notice.create",
     "notification.read", "admission.read",
@@ -129,7 +131,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 
   HEAD_CLERK: [
     "student.read", "staff.read",
-    "fee.manage", "payment.manage", "clerk.manage",
+    "fee.read", "fee.create", "fee.update", "fee.manage",
+    "payment.read", "payment.create", "payment.manage", "clerk.manage",
     "admission.read", "admission.approve",
     "complaint.read", "complaint.assign", "complaint.resolve",
     "notice.read", "notification.read", "audit.read",
@@ -162,7 +165,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     "attendance.read", "grade.read", "exam.read",
     "fee.read", "payment.read",
     "library.read",
-    "complaint.create",
+    "complaint.create", "complaint.read",
     "notice.read", "notification.read",
   ],
 };
@@ -276,6 +279,16 @@ async function main() {
       update: {},
       create: { name },
     });
+  }
+
+  // 7. Demo data (students, teachers, timetable, attendance, fees, library, ...)
+  //    Skipped in production unless SEED_DEMO=true; disable anywhere with SEED_DEMO=false.
+  const demoFlag = process.env.SEED_DEMO;
+  const runDemo = demoFlag ? demoFlag === "true" : process.env.NODE_ENV !== "production";
+  if (runDemo) {
+    await seedDemoData(prisma);
+  } else {
+    console.log("\n⏭️  Demo data skipped (set SEED_DEMO=true to include it).");
   }
 
   console.log("\n✅ Seed completed successfully!");

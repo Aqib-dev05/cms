@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-export const ACCENTS = ["emerald", "forest", "mint"] as const;
+export const ACCENTS = ["green", "blue", "red"] as const;
 export type Accent = (typeof ACCENTS)[number];
 
 export interface UIState {
@@ -14,7 +14,7 @@ export interface UIState {
 const initialState: UIState = {
   sidebarCollapsed: false,
   mobileNavOpen: false,
-  accent: "emerald",
+  accent: "green",
   hydrated: false,
 };
 

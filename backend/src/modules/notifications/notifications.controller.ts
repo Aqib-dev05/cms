@@ -16,7 +16,7 @@ const sendSchema = z.object({
 const sendToRoleSchema = z.object({
   title:    z.string().min(1).max(200),
   body:     z.string().min(1).max(1000),
-  roleName: z.string(),
+  roleName: z.enum(["ADMIN", "HOD", "TEACHER", "HEAD_CLERK", "CLERK", "COMPLAINT_OFFICER", "LIBRARIAN", "STUDENT"]),
   channel:  z.enum(["IN_APP","EMAIL","SMS"]).optional(),
 });
 

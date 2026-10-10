@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const ACCENT_META: Record<Accent, { label: string; swatch: string }> = {
-  emerald: { label: "Emerald", swatch: "bg-[hsl(142_72%_29%)]" },
-  forest: { label: "Forest", swatch: "bg-[hsl(158_64%_22%)]" },
-  mint: { label: "Mint", swatch: "bg-[hsl(168_84%_25%)]" },
+  green: { label: "Green", swatch: "bg-[hsl(142_72%_29%)]" },
+  blue: { label: "Royal Blue", swatch: "bg-[hsl(225_73%_57%)]" },
+  red: { label: "Crimson", swatch: "bg-[hsl(350_76%_42%)]" },
 };
 
 export function ThemeToggle() {

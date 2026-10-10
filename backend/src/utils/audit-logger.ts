@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../config/database";
 import { logger } from "./logger";
 
@@ -18,7 +19,13 @@ export interface AuditPayload {
  */
 export async function audit(payload: AuditPayload): Promise<void> {
   try {
-    await prisma.auditLog.create({ data: payload });
+    await prisma.auditLog.create({
+      data: {
+        ...payload,
+        oldData: payload.oldData as Prisma.InputJsonObject | undefined,
+        newData: payload.newData as Prisma.InputJsonObject | undefined,
+      },
+    });
   } catch (err) {
     // Audit failure must never break the main request
     logger.error("Audit log write failed:", err);

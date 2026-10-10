@@ -1,6 +1,6 @@
 # College Management System — Claude Project Context
 
-> Last verified against repo: `https://github.com/Aqib-dev05/cms` (Oct 2026, HEAD `09ec58c`) — frontend Phase 1 described below is delivered as patches `frontend-phase1`, `frontend-phase2`, `phase3-admin-dashboard`, `phase4-students` (apply in order, then update this line)
+> Last verified against repo: `https://github.com/Aqib-dev05/cms` (Oct 2026, HEAD `d81de33` + patch `attendance-security-seed-accent`) — Phase 5 (all role screens) is in the repo; the patch adds the attendance/security fixes, demo seed and new accent presets described below (apply it, then update this line)
 
 ## What This Is
 A full-stack College Management System built solo by Aqib Ali as his Final Year Project (FYP) for BS-IT at University of the Punjab, Lahore. It is also intended as a real deployable product.
@@ -182,7 +182,7 @@ admission:status_changed  → application reviewed
 ```
 
 ### Actually emitted by services right now
-Only **3** are wired: `notification` (notifications service), `attendance:marked` (attendance service), `exam:result_published` (exams service). The other 8 are defined as constants but **not emitted yet** — finance, complaints, notices, admissions, `attendance:updated` and `notification:unread_count` still need wiring.
+Only **4** are wired: `notification` (notifications service), `attendance:marked` and `attendance:updated` (attendance service), `exam:result_published` (exams service). The rest are defined as constants but **not emitted yet** — finance, complaints, notices, admissions and `notification:unread_count` still need wiring.
 
 ### Rooms
 - `user:{userId}` — personal room (joined on connect)
@@ -273,10 +273,10 @@ frontend/
 
 ## Frontend — Current State
 
-**All role screens are built (Phase 5): every sidebar item for every role now has a real page.** Pages live in `app/(dashboard)/[role]/<slug>/page.tsx` and use `<RoleSwitch views={{ROLE: <Screen/>}}/>` so one route file serves every role that has that slug; static `admin/students`, `clerk/students`, `admin/academic` and `admin/page.tsx` still win over `[role]`. Feature code is in `features/<module>/{types,api,hooks,components}`. New shared pieces: `ui/dialog`, `ui/tabs`, `ui/checkbox`, `shared/form-dialog`, `shared/role-switch`, `shared/student-picker`, `shared/section-select`, `shared/teacher-select`, `shared/semester-picker`, `shared/password-field`, `hooks/use-app-mutation` (mutation + toast + invalidate), `lib/form.ts` (`useZodForm` + zod field helpers), `lib/api-helpers.ts`. Old Zustand `stores/` folder removed.
+**All role screens are built (Phase 5): every sidebar item for every role now has a real page.** Pages live in `app/(dashboard)/[role]/<slug>/page.tsx` and use `<RoleSwitch views={{ROLE: <Screen/>}}/>` so one route file serves every role that has that slug; static `admin/students`, `clerk/students`, `admin/academic` and `admin/page.tsx` still win over `[role]`. Feature code is in `features/<module>/{types,api,hooks,components}`. New shared pieces: `ui/dialog`, `ui/tabs`, `ui/checkbox`, `shared/form-dialog`, `shared/role-switch`, `shared/student-picker`, `shared/section-select`, `shared/teacher-select`, `shared/semester-picker`, `shared/password-field`, `hooks/use-app-mutation` (mutation + toast + invalidate), `lib/form.ts` (`useZodForm` + zod field helpers), `lib/api-helpers.ts`. Old Zustand `stores/` folder removed (the leftover dead folder was deleted in the patch).
 
 Done:
-- Design system: green palette tokens (light + dark), 3 accent presets (Emerald / Forest / Mint), Light/Dark/System switching (`ThemeToggle` in topbar + login page). See `DESIGN_SYSTEM.md`.
+- Design system: green palette tokens (light + dark), 3 accent presets (Green default / Royal Blue / Crimson — blue & red also retint the neutrals; `--success/--warning/--destructive` stay semantic), Light/Dark/System switching (`ThemeToggle` in topbar + login page). See `DESIGN_SYSTEM.md`.
 - Providers: Redux → next-themes → React Query → Tooltip → store hydrator, accent sync, socket provider, toaster.
 - Redux: `auth` slice (`user`, `accessToken`, `hydrated`; `isAuthenticated` is a selector) and `ui` slice (`sidebarCollapsed`, `mobileNavOpen`, `accent`). Persisted to `localStorage` keys `cms-auth` / `cms-ui` by a listener middleware; hydrated client-side in `StoreHydrator`.
 - `lib/api.ts`: axios with `withCredentials`, Bearer token from the Redux store, 401 → single shared `/auth/refresh` (refresh tokens rotate, so no parallel refreshes) → retry, else `clearAuth` + redirect to `/login`. `getErrorMessage()` helper.
@@ -311,12 +311,11 @@ Not done yet:
 ---
 
 ## Known issues / gaps
-- **Backend `tsc` fails after a real `prisma generate`** (3 pre-existing errors: `notifications.service.ts` ×2 — JSON `data` field and role filter type; `utils/audit-logger.ts` ×1 — JSON `oldData`/`newData`). The old "0 TS errors" was measured before generate. Needs small casts; will break any build that runs `tsc`.
 - `PATCH /students/:id/status` accepts a `note` but never stores it (the UI doesn't send one).
 - The frontend has no automated tests / test runner yet (UI was verified with throw-away jsdom tests).
 - Frontend doesn't know user permissions (only the role), so action buttons are shown by role; the backend enforces the real permission.
-
----
+- **Teacher ownership is only enforced for attendance.** `grade.create` / `exam.create` (HOD) are not yet limited to the teacher's own sections, and `LIBRARIAN` (`complaint.read`) can list every complaint. Same pattern as `attendance.access.ts` can be reused.
+- Prisma needs its engine binaries to run; in sandboxes without network access use `prisma generate --no-engine` just for typechecking.
 
 ## What Still Needs Building
 1. **Frontend (Next.js)** — Phase 1 done; shared components + module screens remaining (see above)
@@ -405,11 +404,35 @@ npm run typecheck
 - Registration number as academic identity (not email)
 - Two independent folders (`backend/`, `frontend/`) with npm — no monorepo tooling
 - Frontend state: Redux Toolkit (auth + UI) + React Query (all API data) — Zustand dropped
-- Frontend design: green palette, Lexend + Source Sans 3, Light/Dark/System + accent presets
+- Frontend design: green default palette, Lexend + Source Sans 3, Light/Dark/System + accent presets (Green / Royal Blue / Crimson)
 
-## Known backend permission gaps (found while building Phase 5)
-`requirePermission` is an exact match (`fee.manage` does NOT imply `fee.read`), so with the current seed:
-- HEAD_CLERK has no `fee.read/create/update`, `payment.read/create` -> invoices list, new invoice, record payment return 403.
-- HOD has no `attendance.create/update`, `grade.create/update`, `exam.create` -> can't mark attendance / enter marks / create exams.
-- STUDENT has no `complaint.read` -> can't list or open own complaints.
-- `/students/:id` and `/students/me` include the whole `user` row (check that `passwordHash` is not returned).
+## Permissions & data-scoping rules (fixed in the Oct 2026 patch — re-run `npm run db:seed` after pulling)
+`requirePermission` is an exact match (`fee.manage` does NOT imply `fee.read`), so the seed now grants:
+- HEAD_CLERK: everything a CLERK has (`fee.read/create/update`, `payment.read/create`) plus the `manage` perms.
+- HOD: `attendance.create/update`, `exam.create`, `grade.create/update` (in addition to the manage perms).
+- STUDENT: `complaint.read` — and the API scopes it: a student only lists/opens/comments on **their own** complaints, never sees internal comments (404 for others' ids).
+- `passwordHash` is no longer returned by `GET /students/:id`, `/students/me` or `GET /staff/:id` (these used `include` on `user`).
+- The 3 old `tsc` errors are fixed; backend `npm run typecheck` and frontend `npm run typecheck` are both clean.
+
+### Student data is read-only and own-only
+STUDENT can only read their own data. Enforced in the API (not just the UI):
+- Attendance: `/attendance/me` only; `/attendance/students/:userId` → 403 for other users; roster, section summary and session endpoints are staff-only.
+- Fees: `/finance/invoices` is forced to the student's own invoices, `/finance/invoices/:id` and `/finance/students/:userId` → 404/403 for others.
+- Exams: `/exams` lists only published exams of enrolled sections; `/exams/:id` returns only the student's own published result; `/exams/students/:userId/grades` → 403 for others.
+
+### Attendance rules (`backend/src/modules/attendance/attendance.access.ts`)
+- ADMIN: any section, any date.
+- TEACHER: only sections they are assigned to (`CourseTeacher`); can mark/correct only within the last **7 days** (`EDIT_WINDOW_DAYS`); future dates are rejected.
+- HOD: sections they teach **plus every section of courses in their own department**; no date limit (corrects old records for teachers).
+- Every mark/edit is written to the audit log (old → new status) and `attendance:updated` is emitted to the section room.
+- Frontend mirrors the window: teachers get read-only toggles on old sessions and a `min` date on the mark form.
+- Also fixed: combined `from`+`to` filters in the student report, N+1 queries in the section summary, duplicate student ids in a mark request.
+
+---
+
+## Demo data (`backend/prisma/seed-demo.ts`)
+`npm run db:seed` = base data (roles, permissions, admin, categories, fee types) **+ demo data**. `SEED_DEMO=false` skips the demo part; it is skipped by default when `NODE_ENV=production` (`SEED_DEMO=true` forces it). Skipped automatically if department `CS` already exists (use `npm run db:reset` for a clean slate). Data is generated relative to today (semester started ~5 weeks ago) with a fixed PRNG, so it is deterministic.
+
+Contents: 2 departments (CS, BA), 3 programs (CS, IT, BBA), 5 semesters, 15 courses, 18 sections with a clash-free timetable, 13 staff, 26 students (24 enrolled + 1 suspended + 1 alumni), ~170 attendance sessions (some students deliberately <75%), exams with published/unpublished results, fee structures + 33 invoices (paid / partial / unpaid / overdue / waived, discounts, instalments, last semester's history), 16 books with copies (issued, overdue, returned with fines, lost/damaged), 7 complaints across all statuses with comments + history, 8 notices (incl. expired + a draft), 10 admission applications across all statuses, notifications and audit samples.
+
+All demo users share the password `Demo@1234`: `hod.cs`, `hod.ba`, `teacher.ayesha|usman|sana|bilal|hamza|maryam`, `headclerk`, `clerk.kamran|hina`, `complaints`, `librarian`, students like `ali.raza`, `omar.farooq` (low attendance), `ahmed.bashir` (sem 3), `saad.chaudhry` (BBA). `admin` / `Admin@1234` is unchanged.

@@ -28,7 +28,7 @@ export function AccentSync() {
   useEffect(() => {
     if (!hydrated) return; // keep what the pre-hydration script set, avoid a flash
     const el = document.documentElement;
-    if (accent === "emerald") delete el.dataset.accent;
+    if (accent === "green") delete el.dataset.accent;
     else el.dataset.accent = accent;
   }, [accent, hydrated]);
 

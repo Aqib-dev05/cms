@@ -25,8 +25,8 @@ Never rely on colour alone to convey meaning (add icon/label).
 
 ## Theming
 - Mode: **Light / Dark / System** via `next-themes` (`class` strategy).
-- Accent presets: **Emerald** (default), **Forest**, **Mint** — set with `<html data-accent="…">`, stored in Redux (`ui.accent`) and persisted to `localStorage["cms-ui"]`. A tiny inline script in `app/layout.tsx` applies it before first paint.
-- To add an accent: add `html[data-accent="x"]` and `html.dark[data-accent="x"]` blocks in `globals.css`, then add it to `ACCENTS` (`store/slices/ui.slice.ts`) and `ACCENT_META` (`components/layout/theme-toggle.tsx`).
+- Accent presets: **Green** (default), **Royal Blue**, **Crimson** — set with `<html data-accent="…">`, stored in Redux (`ui.accent`) and persisted to `localStorage["cms-ui"]`. A tiny inline script in `app/layout.tsx` applies it before first paint.
+- To add an accent: add `html[data-accent="x"]` and `html.dark[data-accent="x"]` blocks in `globals.css`, then add it to `ACCENTS` (`store/slices/ui.slice.ts`), `ACCENT_META` (`components/layout/theme-toggle.tsx`) and the inline script in `app/layout.tsx`. Blue/Red also retint neutrals (background, muted, border, sidebar); `--success/--warning/--destructive` are never overridden.
 
 ## Layout
 Sidebar (collapsible on desktop, drawer on < `lg`) + sticky topbar (breadcrumbs, notification bell, theme, user menu). Sidebar items come from `config/nav.ts` per role.

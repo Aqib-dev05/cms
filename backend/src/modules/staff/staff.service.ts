@@ -99,7 +99,9 @@ export async function getStaffById(id: string) {
   });
 
   if (!user || !user.staffProfile) throw AppError.notFound("Staff member not found");
-  return user;
+  // `include` returns every user column — never send the password hash out
+  const { passwordHash: _passwordHash, ...safeUser } = user;
+  return safeUser;
 }
 
 export async function getDepartmentStaff(departmentId: string) {
