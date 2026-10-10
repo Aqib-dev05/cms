@@ -273,7 +273,7 @@ frontend/
 
 ## Frontend — Current State
 
-**Phase 1 (foundation), Phase 2 (shared components), the admin dashboard and the Students module are built. Other module screens are not.**
+**All role screens are built (Phase 5): every sidebar item for every role now has a real page.** Pages live in `app/(dashboard)/[role]/<slug>/page.tsx` and use `<RoleSwitch views={{ROLE: <Screen/>}}/>` so one route file serves every role that has that slug; static `admin/students`, `clerk/students`, `admin/academic` and `admin/page.tsx` still win over `[role]`. Feature code is in `features/<module>/{types,api,hooks,components}`. New shared pieces: `ui/dialog`, `ui/tabs`, `ui/checkbox`, `shared/form-dialog`, `shared/role-switch`, `shared/student-picker`, `shared/section-select`, `shared/teacher-select`, `shared/semester-picker`, `shared/password-field`, `hooks/use-app-mutation` (mutation + toast + invalidate), `lib/form.ts` (`useZodForm` + zod field helpers), `lib/api-helpers.ts`. Old Zustand `stores/` folder removed.
 
 Done:
 - Design system: green palette tokens (light + dark), 3 accent presets (Emerald / Forest / Mint), Light/Dark/System switching (`ThemeToggle` in topbar + login page). See `DESIGN_SYSTEM.md`.
@@ -291,9 +291,11 @@ Done:
 - Helpers: `lib/format.ts` (date/PKR currency/percent/humanize), `lib/pagination.ts` (`fetchPaginated`, `PAGE_SIZES`), `hooks/use-page-state.ts`, `hooks/use-debounced-value.ts`. List-page recipe is in `DESIGN_SYSTEM.md`.
 
 Not done yet:
-- All module screens (students, attendance, exams, finance, library, complaints, notices, admissions, audit, ...)
-- Profile and change-password pages (menu links exist)
 - Socket listeners for the other events (backend doesn't emit them yet)
+- Public admission application form (no unauthenticated programs endpoint)
+- Leave approval UI (no backend model; `/[role]/leave` is submit-only)
+- Notice drafts (list endpoint only returns published notices, so notices are always published on create)
+- Frontend automated tests
 
 ### Frontend Rules
 - Next.js App Router, mostly Client Components for the dashboard (SPA-style; no SSR for protected routes)
@@ -304,7 +306,7 @@ Not done yet:
 ### Build Phases
 1. Foundation (done)
 2. Shared components (done)
-3. Dashboards and module screens: admin dashboard (done), Students (done), then Staff, Academic setup, Attendance, Exams, Finance, ... and the teacher / student dashboards
+3. Dashboards and module screens (done): admin dashboard, Students, Academic setup, Staff, Users, Timetable, Attendance, Exams/Results, Finance, Library, Complaints, Notices, Admissions, Audit, Profile/Settings/Notifications, role dashboards
 
 ---
 
@@ -404,3 +406,10 @@ npm run typecheck
 - Two independent folders (`backend/`, `frontend/`) with npm — no monorepo tooling
 - Frontend state: Redux Toolkit (auth + UI) + React Query (all API data) — Zustand dropped
 - Frontend design: green palette, Lexend + Source Sans 3, Light/Dark/System + accent presets
+
+## Known backend permission gaps (found while building Phase 5)
+`requirePermission` is an exact match (`fee.manage` does NOT imply `fee.read`), so with the current seed:
+- HEAD_CLERK has no `fee.read/create/update`, `payment.read/create` -> invoices list, new invoice, record payment return 403.
+- HOD has no `attendance.create/update`, `grade.create/update`, `exam.create` -> can't mark attendance / enter marks / create exams.
+- STUDENT has no `complaint.read` -> can't list or open own complaints.
+- `/students/:id` and `/students/me` include the whole `user` row (check that `passwordHash` is not returned).
