@@ -28,3 +28,10 @@ export async function createStudent(payload: StudentFormValues): Promise<Created
 export async function updateStudentStatus(id: string, status: SettableStatus): Promise<void> {
   await api.patch(`/students/${id}/status`, { status });
 }
+
+/** The signed-in student's own profile + active enrollments (no permission needed). */
+export async function fetchMyProfile(): Promise<StudentDetail> {
+  const { data } = await api.get<ApiResponse<StudentDetail>>("/students/me");
+  if (!data.data) throw new Error(data.message || "Profile not found");
+  return data.data;
+}

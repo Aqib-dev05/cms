@@ -42,6 +42,7 @@ export interface StudentEnrollment {
   section: {
     id: string;
     name: string;
+    semesterId?: string;
     course: { name: string; code: string; creditHours: number };
     semester: { semesterNumber: number; type: string };
     teachers: { staffProfile: { firstName: string; lastName: string } }[];

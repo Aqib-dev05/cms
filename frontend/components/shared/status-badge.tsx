@@ -14,6 +14,8 @@ const STATUS_VARIANT: Record<string, Variant> = {
   AVAILABLE: "success",
   ENROLLED: "success",
   GRADUATED: "success",
+  PUBLISHED: "success",
+  RETURNED: "success",
   // needs attention
   UNPAID: "warning",
   PARTIAL: "warning",
@@ -24,6 +26,7 @@ const STATUS_VARIANT: Record<string, Variant> = {
   WAITLISTED: "warning",
   ON_LEAVE: "warning",
   RESERVED: "warning",
+  PENDING: "warning",
   UNDER_REPAIR: "warning",
   // bad
   ABSENT: "destructive",
@@ -43,6 +46,7 @@ const STATUS_VARIANT: Record<string, Variant> = {
   // neutral
   DRAFT: "secondary",
   CLOSED: "secondary",
+  CANCELLED: "secondary",
   RETIRED: "secondary",
   RESIGNED: "secondary",
   ALUMNI: "secondary",

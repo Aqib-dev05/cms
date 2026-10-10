@@ -72,6 +72,7 @@ const NAV: Record<RoleName, NavGroupDef[]> = {
         attendance,
         { label: "Exams & Results", slug: "exams", icon: Award },
         { label: "Finance", slug: "finance", icon: Wallet },
+        { label: "Fee Structures", slug: "fee-structures", icon: Layers },
         { label: "Library", slug: "library", icon: Library },
         { label: "Admissions", slug: "admissions", icon: UserPlus },
       ],
@@ -95,7 +96,7 @@ const NAV: Record<RoleName, NavGroupDef[]> = {
       items: [
         { label: "My Department", slug: "department", icon: Building2 },
         { label: "Staff", slug: "staff", icon: Users },
-        { label: "Leave Requests", slug: "leave", icon: CalendarOff },
+        { label: "My Leave", slug: "leave", icon: CalendarOff },
       ],
     },
     {
