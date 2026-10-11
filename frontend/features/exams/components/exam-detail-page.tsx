@@ -10,6 +10,7 @@ import { useRole } from "@/hooks/use-role";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -80,7 +81,7 @@ export function ExamDetailPage({ id }: { id: string }) {
   const stats = summary.data?.stats;
   return (
     <>
-      <PageHeader title={e.title} description={`${e.section.course.code} · Section ${e.section.name} — ${humanize(e.type as ExamType)}${e.date ? ` · ${formatDate(e.date)}` : ""}`} actions={back} />
+      <PageHeader title={e.title} description={`${e.section.course.code} · Section ${e.section.name} — ${humanize(e.type as ExamType)}${e.date ? ` · ${formatDate(e.date)}` : ""}`} actions={<div className="flex gap-2"><ExportMenu resource="section-results" label="Export results" params={{ examId: id }} />{back}</div>} />
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <StatusBadge status={e.isPublished ? "PUBLISHED" : "DRAFT"} />
         <span className="text-sm text-muted-foreground tabular-nums">Total {e.totalMarks} · Passing {e.passingMarks}{e.duration ? ` · ${e.duration} min` : ""}</span>

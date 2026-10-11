@@ -11,6 +11,8 @@ router.get("/report-card/me/:semesterId",             ctrl.getMyReportCard);
 
 // Staff/admin access
 router.get("/fee-receipt/:invoiceId",                 requirePermission("fee.read"),   ctrl.getFeeReceipt);
+router.get("/fee-challans",                           requirePermission("fee.read"),   ctrl.getBulkChallans);
+router.get("/fee-challan/:invoiceId",                 requirePermission("fee.read"),   ctrl.getFeeChallan);
 router.get("/report-card/:userId/:semesterId",        requirePermission("grade.read"), ctrl.getReportCard);
 
 export default router;

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CalendarCheck, CircleCheck, CircleX, Clock3, Percent } from "lucide-react";
 import { formatDate, formatPercent } from "@/lib/format";
 import { DataTable, type Column } from "@/components/shared/data-table";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -71,7 +72,7 @@ export function MyAttendancePage() {
 
   return (
     <>
-      <PageHeader title="My attendance" description={`Attendance below ${AT_RISK_THRESHOLD}% puts you at risk of being barred from exams.`} />
+      <PageHeader title="My attendance" description={`Attendance below ${AT_RISK_THRESHOLD}% puts you at risk of being barred from exams.`} actions={<ExportMenu resource="my-attendance" label="Download attendance" />} />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Overall attendance" value={s ? formatPercent(s.percentage) : undefined} icon={Percent} tone={s && s.percentage < AT_RISK_THRESHOLD ? "danger" : "success"} description={s ? `${s.total} classes marked` : undefined} loading={q.isLoading} />
         <StatCard title="Present" value={s?.present} icon={CircleCheck} tone="success" loading={q.isLoading} />

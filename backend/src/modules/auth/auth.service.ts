@@ -5,6 +5,7 @@ import { redis } from "../../config/redis";
 import { env } from "../../config/env";
 import { AppError } from "../../utils/app-error";
 import { logger } from "../../utils/logger";
+import { resolveUserPermissions } from "../../middlewares/permission.middleware";
 import type { LoginDto, TokenPayload, AuthTokens, AuthUser } from "./auth.types";
 
 function signAccessToken(payload: TokenPayload): string {
@@ -75,6 +76,8 @@ export async function login(
       collegeEmail: user.collegeEmail,
       role: { name: user.role.name, displayName: user.role.displayName },
       isActive: user.isActive,
+      permissions: await resolveUserPermissions(user.id),
+      duties: user.duties,
     },
   };
 }
@@ -139,6 +142,8 @@ export async function getMe(userId: string): Promise<AuthUser> {
     collegeEmail: user.collegeEmail,
     role: { name: user.role.name, displayName: user.role.displayName },
     isActive: user.isActive,
+    permissions: await resolveUserPermissions(user.id),
+    duties: user.duties,
   };
 }
 

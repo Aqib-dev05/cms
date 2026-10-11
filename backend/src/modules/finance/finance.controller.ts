@@ -104,7 +104,23 @@ export const getInvoice = asyncHandler(async (req: Request, res: Response) => {
   ApiRes.success(res, invoice);
 });
 export const createInvoice = asyncHandler(async (req: Request, res: Response) => {
-  ApiRes.created(res, await svc.createInvoice(invoiceSchema.parse(req.body)), "Invoice created");
+  if (!req.user) throw AppError.unauthorized();
+  ApiRes.created(res, await svc.createInvoice(invoiceSchema.parse(req.body), req.user.userId), "Invoice created");
+});
+
+const bulkInvoiceSchema = z.object({
+  feeStructureId:    z.string().uuid(),
+  dueDate:           z.string().transform((v) => new Date(v)),
+  semester:          z.string().max(50).optional(),
+  remarks:           z.string().max(300).optional(),
+  studentProfileIds: z.array(z.string().uuid()).min(1).optional(),
+  currentSemester:   z.number().int().min(1).max(12).optional(),
+});
+
+export const bulkCreateInvoices = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  const dto = bulkInvoiceSchema.parse(req.body);
+  ApiRes.created(res, await svc.bulkCreateInvoices(dto, req.user.userId), "Challans generated");
 });
 
 // Payments
@@ -112,6 +128,49 @@ export const recordPayment = asyncHandler(async (req: Request, res: Response) =>
   if (!req.user) throw AppError.unauthorized();
   const dto = paymentSchema.parse(req.body);
   ApiRes.created(res, await svc.recordPayment(dto, req.user.userId), "Payment recorded");
+});
+
+export const listPayments = asyncHandler(async (req: Request, res: Response) => {
+  const { page, limit } = getPaginationParams(req.query as Record<string, string>);
+  const status = z.enum(["PENDING", "VERIFIED", "REJECTED"]).optional().parse(req.query.status);
+  const { payments, total } = await svc.listPayments({
+    page, limit, status,
+    invoiceId: req.query.invoiceId as string | undefined,
+    search:    req.query.search    as string | undefined,
+  });
+  ApiRes.paginated(res, payments, buildPaginationMeta(total, page, limit));
+});
+
+export const verifyPayment = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  const { note } = z.object({ note: z.string().max(300).optional() }).parse(req.body ?? {});
+  ApiRes.success(res, await svc.verifyPayment(req.params.id, req.user, note), "Payment verified");
+});
+
+export const rejectPayment = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  const { note } = z.object({ note: z.string().min(5).max(300) }).parse(req.body ?? {});
+  ApiRes.success(res, await svc.rejectPayment(req.params.id, req.user, note), "Payment rejected");
+});
+
+// Reports
+export const getDefaulters = asyncHandler(async (req: Request, res: Response) => {
+  const { page, limit } = getPaginationParams(req.query as Record<string, string>);
+  const { invoices, total, totalOutstanding } = await svc.getDefaulters({
+    page, limit, programId: req.query.programId as string | undefined,
+  });
+  res.status(200).json({
+    success: true, message: "Success", data: invoices,
+    meta: { ...buildPaginationMeta(total, page, limit), totalOutstanding },
+  });
+});
+
+export const getDailyCollection = asyncHandler(async (req: Request, res: Response) => {
+  const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().parse(req.query.date)
+    ?? new Date(Date.now() + 5 * 3600_000).toISOString().slice(0, 10); // today in Pakistan time
+  const start = new Date(`${day}T00:00:00+05:00`);
+  const end   = new Date(`${day}T23:59:59.999+05:00`);
+  ApiRes.success(res, await svc.getDailyCollection(start, end));
 });
 
 // Discounts

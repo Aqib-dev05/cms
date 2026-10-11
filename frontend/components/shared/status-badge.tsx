@@ -15,6 +15,7 @@ const STATUS_VARIANT: Record<string, Variant> = {
   ENROLLED: "success",
   GRADUATED: "success",
   PUBLISHED: "success",
+  VERIFIED: "success",
   RETURNED: "success",
   // needs attention
   UNPAID: "warning",

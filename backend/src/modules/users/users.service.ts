@@ -105,7 +105,26 @@ export async function getUserById(id: string) {
   return user;
 }
 
+/** The whole college has exactly one library, run from exactly one librarian account. */
+async function assertSingleLibrarian(excludeUserId?: string) {
+  const existing = await prisma.user.findFirst({
+    where: {
+      role:     { name: "LIBRARIAN" },
+      isActive: true,
+      ...(excludeUserId && { id: { not: excludeUserId } }),
+    },
+    select: { username: true },
+  });
+  if (existing) {
+    throw AppError.conflict(
+      `The college library already has an active librarian account (${existing.username}). Deactivate it before adding or activating another.`
+    );
+  }
+}
+
 export async function createStaff(dto: CreateStaffDto) {
+  if (dto.roleName === "LIBRARIAN") await assertSingleLibrarian();
+
   const existing = await prisma.user.findFirst({
     where: { OR: [{ username: dto.username }, { email: dto.email }] },
   });
@@ -167,6 +186,11 @@ export async function updateStaffProfile(id: string, dto: UpdateStaffProfileDto)
 export async function toggleUserStatus(id: string) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw AppError.notFound("User not found");
+
+  if (!user.isActive) {
+    const role = await prisma.role.findUnique({ where: { id: user.roleId }, select: { name: true } });
+    if (role?.name === "LIBRARIAN") await assertSingleLibrarian(id);
+  }
 
   const updated = await prisma.user.update({
     where: { id },

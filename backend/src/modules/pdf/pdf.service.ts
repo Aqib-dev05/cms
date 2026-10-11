@@ -111,7 +111,7 @@ export async function generateFeeReceipt(invoiceId: string, res: Response) {
           user:       { select: { username: true, email: true } },
         },
       },
-      payments:  { orderBy: { paidAt: "asc" } },
+      payments:  { where: { verificationStatus: "VERIFIED" }, orderBy: { paidAt: "asc" } },
       discounts: true,
     },
   });

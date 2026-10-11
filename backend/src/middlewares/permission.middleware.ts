@@ -4,7 +4,7 @@ import { AppError } from "../utils/app-error";
 import { asyncHandler } from "../utils/async-handler";
 import { getCachedUserPermissions, cacheUserPermissions } from "../config/redis";
 
-async function resolveUserPermissions(userId: string): Promise<string[]> {
+export async function resolveUserPermissions(userId: string): Promise<string[]> {
   const cached = await getCachedUserPermissions(userId);
   if (cached) return cached;
 

@@ -10,6 +10,7 @@ import { openPdf } from "@/lib/api-helpers";
 import { formatDate, formatPercent, humanize } from "@/lib/format";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +69,7 @@ export function MyResultsPage() {
               <Button variant="outline" onClick={download} loading={downloading}>
                 <FileDown aria-hidden="true" /> Report card (PDF)
               </Button>
+              <ExportMenu resource="my-marksheet" label="Mark sheet" params={{ semesterId: semesterId || undefined }} />
             </div>
           ) : undefined
         }

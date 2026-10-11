@@ -1,7 +1,7 @@
 import { getData, getDataOr, sendData } from "@/lib/api-helpers";
 import { fetchPaginated, type PageParams } from "@/lib/pagination";
 import type { PaginatedResponse } from "@/types";
-import type { FeeStatus, FeeStructure, FeeType, FinanceSummary, Invoice, InvoiceItemBody, MyFinance, PaymentMethod } from "./types";
+import type { BulkInvoiceResult, DailyCollection, DefaulterRow, FeeStatus, FeeStructure, FeeType, FinanceSummary, Invoice, InvoiceItemBody, MyFinance, PaymentMethod, PaymentRow, VerificationStatus } from "./types";
 
 export interface InvoiceParams extends PageParams {
   studentProfileId?: string;
@@ -21,3 +21,17 @@ export const applyDiscount = (b: { invoiceId: string; reason: string; amount: nu
 export const createFeeType = (b: { name: string; description?: string }) => sendData<FeeType>("post", "/finance/fee-types", b);
 export const updateFeeType = ({ id, ...b }: { id: string; name?: string; description?: string }) => sendData<FeeType>("patch", `/finance/fee-types/${id}`, b);
 export const createStructure = (b: { name: string; programId: string; session: string; items: { feeTypeId: string; amount: number; isRequired?: boolean }[] }) => sendData<FeeStructure>("post", "/finance/structures", b);
+
+export interface PaymentParams extends PageParams {
+  status?: VerificationStatus;
+  search?: string;
+}
+export const fetchPayments = (params: PaymentParams): Promise<PaginatedResponse<PaymentRow>> => fetchPaginated<PaymentRow, PaymentParams>("/finance/payments", params);
+export const verifyPayment = ({ id, note }: { id: string; note?: string }) => sendData("post", `/finance/payments/${id}/verify`, { note });
+export const rejectPayment = ({ id, note }: { id: string; note: string }) => sendData("post", `/finance/payments/${id}/reject`, { note });
+
+export const bulkCreateInvoices = (b: { feeStructureId: string; dueDate: string; semester: string; remarks?: string; currentSemester?: number }) => sendData<BulkInvoiceResult>("post", "/finance/invoices/bulk", b);
+
+export type DefaultersResponse = PaginatedResponse<DefaulterRow> & { meta: { totalOutstanding: number } };
+export const fetchDefaulters = (params: PageParams & { programId?: string }) => fetchPaginated<DefaulterRow, PageParams & { programId?: string }>("/finance/reports/defaulters", params) as Promise<DefaultersResponse>;
+export const fetchDailyCollection = (date: string) => getData<DailyCollection>("/finance/reports/daily-collection", { date });

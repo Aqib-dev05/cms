@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export function QuickAccess() {
   const user = useAppSelector(selectUser);
   if (!user) return null;
-  const shortcuts = getNav(user.role.name).flatMap((g) => g.items).filter((i) => !i.isHome);
+  const shortcuts = getNav(user.role.name, user.permissions).flatMap((g) => g.items).filter((i) => !i.isHome);
   return (
     <section aria-labelledby="quick-access" className="mt-8">
       <h2 id="quick-access" className="mb-3 text-base font-semibold">Quick access</h2>

@@ -27,6 +27,9 @@ import mediaRoutes         from "./modules/media/media.routes";
 import auditRoutes         from "./modules/audit/audit.routes";
 import pdfRoutes           from "./modules/pdf/pdf.routes";
 import analyticsRoutes     from "./modules/analytics/analytics.routes";
+import clerkRoutes         from "./modules/clerk/clerk.routes";
+import fundRoutes          from "./modules/fund/fund.routes";
+import exportRoutes        from "./modules/export/export.routes";
 
 const app = express();
 
@@ -37,6 +40,7 @@ app.use(cors({
   credentials:    true,
   methods:        ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Content-Disposition"], // lets the browser read the file name of xlsx/pdf downloads
 }));
 
 // ─── Rate Limiting ────────────────────────────────────────────
@@ -76,7 +80,7 @@ app.get("/health", (_req, res) => {
       "auth","users","staff","academic","students",
       "timetable","attendance","exams","finance","library",
       "complaints","notices","admissions","notifications",
-      "media","audit","pdf","analytics",
+      "media","audit","pdf","analytics","clerk","fund","export",
     ],
   });
 });
@@ -102,6 +106,9 @@ app.use(`${API}/media`,          mediaRoutes);
 app.use(`${API}/audit`,          auditRoutes);
 app.use(`${API}/pdf`,            pdfRoutes);
 app.use(`${API}/analytics`,      analyticsRoutes);
+app.use(`${API}/clerk`,          clerkRoutes);
+app.use(`${API}/fund`,           fundRoutes);
+app.use(`${API}/export`,         exportRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────
 app.use((_req, res) => {

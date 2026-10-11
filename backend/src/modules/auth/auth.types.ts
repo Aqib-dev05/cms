@@ -24,4 +24,8 @@ export interface AuthUser {
     displayName: string;
   };
   isActive: boolean;
+  /** Effective permission codes (role + per-user grants) — lets the UI hide what the API would refuse. */
+  permissions?: string[];
+  /** Clerk duties ticked by the head clerk (assistants only). */
+  duties?: string[];
 }

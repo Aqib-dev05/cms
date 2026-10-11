@@ -1,5 +1,6 @@
 import {
   Award,
+  BadgeCheck,
   BarChart3,
   BookMarked,
   BookOpen,
@@ -13,6 +14,7 @@ import {
   LayoutDashboard,
   Library,
   Megaphone,
+  PiggyBank,
   MessageSquareWarning,
   Receipt,
   School,
@@ -31,6 +33,8 @@ interface NavItemDef {
   /** path relative to the role base; "" = dashboard home */
   slug: string;
   icon: LucideIcon;
+  /** hide the item for users who lack this permission (ADMIN always sees everything) */
+  permission?: string;
 }
 interface NavGroupDef {
   label?: string;
@@ -133,22 +137,42 @@ const NAV: Record<RoleName, NavGroupDef[]> = {
       items: [
         { label: "Invoices", slug: "invoices", icon: Receipt },
         { label: "Payments", slug: "payments", icon: CreditCard },
+        { label: "Verification", slug: "verification", icon: BadgeCheck },
         { label: "Fee Structures", slug: "fee-structures", icon: Layers },
-        { label: "Clerks", slug: "clerks", icon: Users },
+        { label: "College Fund", slug: "fund", icon: PiggyBank },
         { label: "Reports", slug: "reports", icon: BarChart3 },
       ],
     },
+    {
+      label: "Records",
+      items: [
+        { label: "Students", slug: "students", icon: GraduationCap },
+        { label: "Admissions", slug: "admissions", icon: UserPlus },
+      ],
+    },
+    { label: "My team", items: [{ label: "Assistants", slug: "assistants", icon: UserCog }] },
   ],
+  // Assistant clerks only see what the head clerk ticked for them (permission-gated)
   CLERK: [
     { items: [home] },
     {
       label: "Finance",
       items: [
-        { label: "Invoices", slug: "invoices", icon: Receipt },
-        { label: "Payments", slug: "payments", icon: CreditCard },
-        { label: "Students", slug: "students", icon: GraduationCap },
+        { label: "Invoices", slug: "invoices", icon: Receipt, permission: "fee.read" },
+        { label: "Payments", slug: "payments", icon: CreditCard, permission: "payment.create" },
+        { label: "Verification", slug: "verification", icon: BadgeCheck, permission: "payment.verify" },
+        { label: "College Fund", slug: "fund", icon: PiggyBank, permission: "fund.read" },
+        { label: "Reports", slug: "reports", icon: BarChart3, permission: "finance.report" },
       ],
     },
+    {
+      label: "Records",
+      items: [
+        { label: "Students", slug: "students", icon: GraduationCap, permission: "student.read" },
+        { label: "Admissions", slug: "admissions", icon: UserPlus, permission: "admission.read" },
+      ],
+    },
+    { label: "Communication", items: [notices] },
   ],
   COMPLAINT_OFFICER: [
     { items: [home] },
@@ -188,15 +212,18 @@ const NAV: Record<RoleName, NavGroupDef[]> = {
   ],
 };
 
-export function getNav(role: RoleName): NavGroup[] {
+export function getNav(role: RoleName, permissions?: string[]): NavGroup[] {
   const base = `/${ROLE_BASE_PATH[role]}`;
-  return NAV[role].map((group) => ({
-    label: group.label,
-    items: group.items.map((item) => ({
-      label: item.label,
-      href: item.slug ? `${base}/${item.slug}` : base,
-      icon: item.icon,
-      isHome: item.slug === "",
-    })),
-  }));
+  const visible = (item: NavItemDef) => !item.permission || role === "ADMIN" || !permissions || permissions.includes(item.permission);
+  return NAV[role]
+    .map((group) => ({
+      label: group.label,
+      items: group.items.filter(visible).map((item) => ({
+        label: item.label,
+        href: item.slug ? `${base}/${item.slug}` : base,
+        icon: item.icon,
+        isHome: item.slug === "",
+      })),
+    }))
+    .filter((group) => group.items.length > 0);
 }

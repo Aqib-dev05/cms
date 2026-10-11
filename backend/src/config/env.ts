@@ -26,6 +26,8 @@ const envSchema = z.object({
   R2_PUBLIC_URL: z.string().optional(),
 
   COLLEGE_NAME: z.string().default("College Management System"),
+  COLLEGE_BANK_NAME: z.string().optional(),
+  COLLEGE_BANK_ACCOUNT: z.string().optional(),
   COLLEGE_EMAIL_DOMAIN: z.string().default("college.edu.pk"),
   COLLEGE_EMAIL_ENABLED: z
     .string()

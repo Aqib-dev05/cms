@@ -2,11 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Banknote, CircleAlert, FilterX, Plus, Receipt, Wallet } from "lucide-react";
+import { Banknote, CircleAlert, FileText, FilterX, Layers, Plus, Receipt, Wallet } from "lucide-react";
 import { usePageState } from "@/hooks/use-page-state";
 import { useRole } from "@/hooks/use-role";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useCan } from "@/hooks/use-can";
+import { openPdf } from "@/lib/api-helpers";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "sonner";
 import { DataTable, type Column } from "@/components/shared/data-table";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -15,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { useFinanceSummary, useInvoices } from "../hooks";
 import { FEE_STATUSES, type FeeStatus, type Invoice } from "../types";
+import { BulkChallanDialog } from "./challan-dialog";
 import { CreateInvoiceDialog } from "./invoice-dialogs";
 
 /** Where an invoice's detail page lives for the current role. */
@@ -27,6 +33,15 @@ export function InvoicesPage({ showSummary = false, title = "Invoices", descript
   const [status, setStatus] = useState<FeeStatus | "">("");
   const [student, setStudent] = useState<PickedStudent | null>(null);
   const [creating, setCreating] = useState(false);
+  const [bulking, setBulking] = useState(false);
+  const canCreate = useCan("fee.create");
+  const printChallan = async (id: string) => {
+    try {
+      await openPdf(`/pdf/fee-challan/${id}`);
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    }
+  };
   const summary = useFinanceSummary(showSummary);
   const q = useInvoices({ page, limit, status: status || undefined, studentProfileId: student?.profileId });
   const filtersActive = !!(status || student);
@@ -39,6 +54,7 @@ export function InvoicesPage({ showSummary = false, title = "Invoices", descript
     { id: "due", header: "Due", align: "right", cell: (i) => <span className="tabular-nums">{formatCurrency(i.dueAmount)}</span> },
     { id: "dueDate", header: "Due date", hideOnMobile: true, cell: (i) => formatDate(i.dueDate) },
     { id: "status", header: "Status", cell: (i) => <StatusBadge status={i.status} /> },
+    { id: "challan", header: "", align: "right", cell: (i) => (i.dueAmount > 0 ? <Button size="sm" variant="ghost" aria-label={`Print challan ${i.invoiceNo}`} onClick={(e) => { e.stopPropagation(); void printChallan(i.id); }}><FileText aria-hidden="true" /> Challan</Button> : null) },
   ];
 
   const s = summary.data;
@@ -48,9 +64,19 @@ export function InvoicesPage({ showSummary = false, title = "Invoices", descript
         title={title}
         description={description}
         actions={
-          <Button onClick={() => setCreating(true)}>
-            <Plus aria-hidden="true" /> New invoice
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <ExportMenu resource="invoices" params={{ status: status || undefined }} />
+            {canCreate && (
+              <>
+                <Button variant="outline" onClick={() => setBulking(true)}>
+                  <Layers aria-hidden="true" /> Generate challans
+                </Button>
+                <Button onClick={() => setCreating(true)}>
+                  <Plus aria-hidden="true" /> New invoice
+                </Button>
+              </>
+            )}
+          </div>
         }
       />
       {showSummary && (
@@ -93,6 +119,7 @@ export function InvoicesPage({ showSummary = false, title = "Invoices", descript
         pagination={q.data && { ...q.data.meta, page, limit, onPageChange: setPage, onLimitChange: setLimit }}
       />
       {creating && <CreateInvoiceDialog onOpenChange={(o) => !o && setCreating(false)} />}
+      {bulking && <BulkChallanDialog onOpenChange={(o) => !o && setBulking(false)} />}
     </>
   );
 }

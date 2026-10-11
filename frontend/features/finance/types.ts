@@ -26,6 +26,9 @@ export interface FeeStructure {
   items: FeeStructureItem[];
 }
 
+export type VerificationStatus = "PENDING" | "VERIFIED" | "REJECTED";
+export const VERIFICATION_STATUSES: VerificationStatus[] = ["PENDING", "VERIFIED", "REJECTED"];
+
 export interface Payment {
   id: string;
   invoiceId: string;
@@ -34,6 +37,50 @@ export interface Payment {
   transactionId: string | null;
   paidAt: string;
   remarks: string | null;
+  receivedById?: string | null;
+  verificationStatus: VerificationStatus;
+  verifiedAt?: string | null;
+  verificationNote?: string | null;
+}
+
+/** A payment as listed in the verification queue (with student / invoice / user names attached). */
+export interface PaymentRow extends Payment {
+  receivedByName: string | null;
+  verifiedByName: string | null;
+  invoice: {
+    id: string;
+    invoiceNo: string;
+    totalAmount: number;
+    dueAmount: number;
+    studentProfile: { registrationNo: string; firstName: string; lastName: string };
+  };
+}
+
+export interface BulkInvoiceResult {
+  created: number;
+  skipped: number;
+  totalAmount: number;
+  invoiceIds: string[];
+}
+
+export interface DefaulterRow {
+  id: string;
+  invoiceNo: string;
+  dueAmount: number;
+  dueDate: string;
+  status: FeeStatus;
+  semester: string | null;
+  studentProfile: { registrationNo: string; firstName: string; lastName: string; phone: string | null; program: { code: string } };
+}
+
+export interface DailyCollection {
+  from: string;
+  to: string;
+  count: number;
+  verifiedTotal: number;
+  byMethod: { method: PaymentMethod; total: number }[];
+  byStatus: Record<VerificationStatus, number>;
+  payments: PaymentRow[];
 }
 export interface Discount {
   id: string;
@@ -64,6 +111,8 @@ export interface FinanceSummary {
   totalCollected: number;
   totalDue: number;
   overdueCount: number;
+  pendingVerificationCount?: number;
+  pendingVerificationAmount?: number;
   byStatus: { status: FeeStatus; _count: { id: number }; _sum: { totalAmount: number | null } }[];
 }
 

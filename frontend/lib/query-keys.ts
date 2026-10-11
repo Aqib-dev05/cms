@@ -63,6 +63,20 @@ export const queryKeys = {
     structures: (programId: string) => ["finance", "structures", programId] as const,
     invoices: (params: object) => ["finance", "invoices", params] as const,
     invoice: (id: string) => ["finance", "invoice", id] as const,
+    payments: (params: object) => ["finance", "payments", params] as const,
+    defaulters: (params: object) => ["finance", "defaulters", params] as const,
+    dailyCollection: (date: string) => ["finance", "daily-collection", date] as const,
+  },
+  clerk: {
+    all: ["clerk"] as const,
+    duties: ["clerk", "duties"] as const,
+    assistants: (params: object) => ["clerk", "assistants", params] as const,
+  },
+  fund: {
+    all: ["fund"] as const,
+    categories: ["fund", "categories"] as const,
+    summary: (params: object) => ["fund", "summary", params] as const,
+    entries: (params: object) => ["fund", "entries", params] as const,
   },
   library: {
     all: ["library"] as const,

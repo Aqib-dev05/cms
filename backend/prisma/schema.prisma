@@ -103,6 +103,17 @@ enum BookStatus {
   UNDER_REPAIR
 }
 
+enum PaymentVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum FundEntryType {
+  INCOME
+  EXPENSE
+}
+
 enum NoticeAudience {
   ALL
   STUDENTS
@@ -154,9 +165,14 @@ model User {
   roleId       String
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  createdById  String?
+  duties       String[]  @default([])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  createdBy       User?            @relation("UserCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers    User[]           @relation("UserCreator")
+  fundEntries     FundEntry[]      @relation("FundRecorder")
   role            Role             @relation(fields: [roleId], references: [id])
   staffProfile    StaffProfile?
   studentProfile  StudentProfile?
@@ -647,6 +663,7 @@ model FeeInvoice {
   issuedAt         DateTime  @default(now())
   semester         String?
   remarks          String?
+  lineItems        Json?
 
   studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
   payments       FeePayment[]
@@ -668,11 +685,39 @@ model FeePayment {
   receivedById  String?
   remarks       String?
 
+  verificationStatus PaymentVerificationStatus @default(VERIFIED)
+  verifiedById       String?
+  verifiedAt         DateTime?
+  verificationNote   String?
+
   invoice FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
   @@map("fee_payments")
+}
+
+model FundEntry {
+  id           String        @id @default(uuid())
+  type         FundEntryType
+  category     String
+  source       String?
+  amount       Float
+  entryDate    DateTime
+  description  String
+  reference    String?
+  recordedById String
+  isVoided     Boolean       @default(false)
+  voidedAt     DateTime?
+  voidReason   String?
+
+  recordedBy User @relation("FundRecorder", fields: [recordedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, entryDate])
+  @@map("fund_entries")
 }
 
 model FeeDiscount {

@@ -99,6 +99,13 @@ const PERMISSIONS = [
   { code: "audit.read",   module: "audit", action: "read"   },
   { code: "audit.manage", module: "audit", action: "manage" },
   { code: "analytics.read", module: "analytics", action: "read" },
+  // Head clerk toolkit
+  { code: "payment.verify",   module: "finance", action: "verify" },
+  { code: "finance.report",   module: "finance", action: "report" },
+  { code: "fund.read",        module: "fund",    action: "read"   },
+  { code: "fund.create",      module: "fund",    action: "create" },
+  { code: "fund.manage",      module: "fund",    action: "manage" },
+  { code: "assistant.manage", module: "clerk",   action: "manage" },
 ];
 
 // ─── Role → Permission map ────────────────────────────────────
@@ -130,19 +137,18 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
 
   HEAD_CLERK: [
-    "student.read", "staff.read",
+    "student.read", "student.create", "student.update", "staff.read",
     "fee.read", "fee.create", "fee.update", "fee.manage",
-    "payment.read", "payment.create", "payment.manage", "clerk.manage",
-    "admission.read", "admission.approve",
+    "payment.read", "payment.create", "payment.manage", "payment.verify", "clerk.manage",
+    "finance.report", "fund.read", "fund.create", "fund.manage", "assistant.manage",
+    "admission.read", "admission.create", "admission.approve",
     "complaint.read", "complaint.assign", "complaint.resolve",
     "notice.read", "notification.read", "audit.read",
   ],
 
+  // Assistant clerks start with nothing but notices — the head clerk ticks their duties
+  // (student records, fee records, collection, verification, fund, ...) per person.
   CLERK: [
-    "student.read",
-    "fee.read", "fee.create", "fee.update",
-    "payment.read", "payment.create",
-    "admission.read", "admission.create",
     "notice.read", "notification.read",
   ],
 
@@ -211,6 +217,14 @@ async function main() {
         create: { roleId: role.id, permissionId: permission.id },
       });
     }
+  }
+
+  // 3b. CLERK is duty-driven: drop any broader permissions left over from older seeds
+  const clerkRole = await prisma.role.findUnique({ where: { name: "CLERK" } });
+  if (clerkRole) {
+    await prisma.rolePermission.deleteMany({
+      where: { roleId: clerkRole.id, permission: { code: { notIn: ROLE_PERMISSIONS.CLERK } } },
+    });
   }
 
   // 4. Seed default admin user

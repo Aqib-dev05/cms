@@ -8,6 +8,7 @@ import { usePrograms } from "@/features/academic/hooks";
 import { usePageState } from "@/hooks/use-page-state";
 import { humanize } from "@/lib/format";
 import { DataTable } from "@/components/shared/data-table";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { Button } from "@/components/ui/button";
@@ -47,13 +48,16 @@ export function StudentsListPage({ basePath, canCreate = false }: StudentsListPa
         title="Students"
         description="Search, filter and manage student records."
         actions={
-          canCreate && (
-            <Button asChild>
-              <Link href={`${basePath}/students/new`}>
-                <Plus aria-hidden="true" /> Add student
-              </Link>
-            </Button>
-          )
+          <div className="flex flex-wrap gap-2">
+            <ExportMenu resource="students" params={{ status: status || undefined, programId: programId || undefined, search: params.search || undefined }} />
+            {canCreate && (
+              <Button asChild>
+                <Link href={`${basePath}/students/new`}>
+                  <Plus aria-hidden="true" /> Add student
+                </Link>
+              </Button>
+            )}
+          </div>
         }
       />
 

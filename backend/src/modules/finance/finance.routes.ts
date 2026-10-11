@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/auth.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import { requirePermission, requireAnyPermission } from "../../middlewares/permission.middleware";
 import * as ctrl from "./finance.controller";
 
 const router = Router();
@@ -10,7 +10,11 @@ router.use(authenticate);
 router.get("/me", ctrl.getMyFinance);
 
 // Summary — head clerk / admin
-router.get("/summary", requirePermission("fee.manage"), ctrl.getFinanceSummary);
+router.get("/summary", requireAnyPermission("fee.manage", "finance.report"), ctrl.getFinanceSummary);
+
+// Reports
+router.get("/reports/defaulters",        requirePermission("finance.report"), ctrl.getDefaulters);
+router.get("/reports/daily-collection",  requirePermission("finance.report"), ctrl.getDailyCollection);
 router.get("/students/:userId", requirePermission("fee.read"), ctrl.getStudentFinance);
 
 // Fee types
@@ -26,10 +30,14 @@ router.post  ("/structures",     requirePermission("fee.manage"), ctrl.createFee
 // Invoices
 router.get   ("/invoices",     requirePermission("fee.read"),   ctrl.getInvoices);
 router.get   ("/invoices/:id", requirePermission("fee.read"),   ctrl.getInvoice);
+router.post  ("/invoices/bulk", requirePermission("fee.create"), ctrl.bulkCreateInvoices);
 router.post  ("/invoices",     requirePermission("fee.create"), ctrl.createInvoice);
 
 // Payments
-router.post("/payments", requirePermission("payment.create"), ctrl.recordPayment);
+router.get ("/payments",            requirePermission("payment.read"),   ctrl.listPayments);
+router.post("/payments",            requirePermission("payment.create"), ctrl.recordPayment);
+router.post("/payments/:id/verify", requirePermission("payment.verify"), ctrl.verifyPayment);
+router.post("/payments/:id/reject", requirePermission("payment.verify"), ctrl.rejectPayment);
 
 // Discounts
 router.post("/discounts", requirePermission("fee.manage"), ctrl.applyDiscount);

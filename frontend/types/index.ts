@@ -9,6 +9,10 @@ export interface AuthUser {
   collegeEmail: string | null;
   role:         { name: RoleName; displayName: string };
   isActive:     boolean;
+  /** Effective permission codes — the API enforces them, the UI just hides what would be refused. */
+  permissions?: string[];
+  /** Duties ticked by the head clerk (assistant clerks only). */
+  duties?:      string[];
 }
 
 export interface ApiResponse<T = unknown> {

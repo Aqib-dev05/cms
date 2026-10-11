@@ -8,6 +8,7 @@ import { openPdf } from "@/lib/api-helpers";
 import { formatCurrency, formatDate, humanize } from "@/lib/format";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -32,7 +33,7 @@ export function MyFeesPage() {
   };
   return (
     <>
-      <PageHeader title="Fees" description="Your invoices, payments and balance." />
+      <PageHeader title="Fees" description="Your invoices, payments and balance." actions={<ExportMenu resource="my-fees" label="Download fee record" />} />
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <StatCard title="Total billed" value={s ? formatCurrency(s.totalBilled) : undefined} icon={Receipt} loading={q.isLoading} />
         <StatCard title="Paid" value={s ? formatCurrency(s.totalPaid) : undefined} icon={Banknote} tone="success" loading={q.isLoading} />

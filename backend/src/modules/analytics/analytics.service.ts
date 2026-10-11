@@ -52,7 +52,7 @@ export async function getOverview(now: Date = new Date()): Promise<AnalyticsOver
     prisma.program.count({ where: { isActive: true } }),
     prisma.feePayment.aggregate({
       _sum: { amount: true },
-      where: { paidAt: { gte: monthStart, lt: nextMonthStart } },
+      where: { verificationStatus: "VERIFIED", paidAt: { gte: monthStart, lt: nextMonthStart } },
     }),
     prisma.feeInvoice.aggregate({
       _sum: { dueAmount: true },
@@ -132,7 +132,7 @@ export async function getFeeTrend(months: number, now: Date = new Date()): Promi
 
   const [payments, invoices] = await Promise.all([
     prisma.feePayment.findMany({
-      where: { paidAt: { gte: since } },
+      where: { verificationStatus: "VERIFIED", paidAt: { gte: since } },
       select: { amount: true, paidAt: true },
     }),
     prisma.feeInvoice.findMany({

@@ -56,7 +56,7 @@ function SidebarContent({ collapsed, onNavigate, showToggle }: { collapsed: bool
   const dispatch = useAppDispatch();
   if (!user) return null;
 
-  const groups = getNav(user.role.name);
+  const groups = getNav(user.role.name, user.permissions);
 
   return (
     <div className="flex h-full flex-col">

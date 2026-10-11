@@ -3,6 +3,7 @@
 import { Banknote, CircleAlert, Receipt, Wallet } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { DataTable, type Column } from "@/components/shared/data-table";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -22,7 +23,7 @@ export function FinanceReportsPage() {
   ];
   return (
     <>
-      <PageHeader title="Reports" description="Collections and outstanding balances across the college." />
+      <PageHeader title="Reports" description="Collections and outstanding balances across the college." actions={<ExportMenu resource="defaulters" label="Export defaulters" />} />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Total collected" value={s ? formatCurrency(s.totalCollected) : undefined} icon={Banknote} tone="success" loading={q.isLoading} />
         <StatCard title="Outstanding" value={s ? formatCurrency(s.totalDue) : undefined} icon={Wallet} tone="warning" loading={q.isLoading} />

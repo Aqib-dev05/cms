@@ -26,6 +26,7 @@ import {
   type ExamType,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { permissionsForDuties } from "../src/modules/clerk/clerk.duties";
 
 export const DEMO_PASSWORD = "Demo@1234";
 
@@ -265,6 +266,18 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       include: { staffProfile: true },
     });
     staff.set(s.username, { userId: user.id, staffId: user.staffProfile!.id, role: s.role });
+  }
+
+  // Head clerk's assistants — each has their own duties (the checkboxes on the head clerk dashboard)
+  const ASSISTANT_DUTIES: Record<string, string[]> = {
+    "clerk.kamran": ["FEE_RECORDS", "PAYMENT_COLLECTION", "REPORTS"],
+    "clerk.hina":   ["STUDENT_RECORDS", "PAYMENT_VERIFICATION", "COLLEGE_FUND"],
+  };
+  for (const [username, duties] of Object.entries(ASSISTANT_DUTIES)) {
+    const userId = staff.get(username)!.userId;
+    const perms = await prisma.permission.findMany({ where: { code: { in: permissionsForDuties(duties) } }, select: { id: true } });
+    await prisma.user.update({ where: { id: userId }, data: { createdById: staff.get("headclerk")!.userId, duties } });
+    await prisma.userPermission.createMany({ data: perms.map((p) => ({ userId, permissionId: p.id, granted: true })) });
   }
   const st = (username: string) => {
     const v = staff.get(username);
@@ -570,6 +583,9 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       paidAt,
       receivedById: clerks[i % clerks.length],
       transactionId: method === "CASH" ? null : `TXN-${YEAR}-${(txn += 1)}`,
+      verificationStatus: "VERIFIED" as const,
+      verifiedById: st("headclerk").userId,
+      verifiedAt: paidAt,
     };
   };
 
@@ -641,6 +657,40 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     await prisma.feePayment.create({ data: payment(invoice.id, first, atHour(-randInt(125, 145), 7), payIdx++) });
     await prisma.feePayment.create({ data: payment(invoice.id, structure.required - first, atHour(-randInt(70, 100), 7), payIdx++) });
   }
+
+  // Payments received today that still wait for a verifier (fills the verification queue)
+  const unpaid = await prisma.feeInvoice.findMany({ where: { status: "UNPAID", paidAmount: 0 }, orderBy: { invoiceNo: "asc" }, take: 3 });
+  for (const [i, inv] of unpaid.entries()) {
+    await prisma.feePayment.create({
+      data: {
+        invoiceId: inv.id,
+        amount: Math.round(inv.dueAmount / 2),
+        method: i % 2 === 0 ? "CASH" : "BANK_TRANSFER",
+        paidAt: atHour(-(2 + i), 7),
+        receivedById: st("clerk.kamran").userId,
+        transactionId: i % 2 === 0 ? null : `TXN-${YEAR}-${9000 + i}`,
+        verificationStatus: "PENDING",
+      },
+    });
+  }
+
+  // College fund ledger: money from outside the fee system, and spending
+  const fundBy = st("headclerk").userId;
+  const fundRows: { type: "INCOME" | "EXPENSE"; category: string; source?: string; amount: number; daysAgo: number; description: string; reference?: string }[] = [
+    { type: "INCOME",  category: "GOVERNMENT_GRANT", source: "Higher Education Department, Punjab", amount: 2500000, daysAgo: 40, description: "Annual development grant — first instalment", reference: "HED/2026/118" },
+    { type: "INCOME",  category: "DONATION",         source: "Alumni Association",                  amount: 350000,  daysAgo: 22, description: "Donation for the library and student scholarships" },
+    { type: "INCOME",  category: "DONATION",         source: "Local philanthropist",                amount: 150000,  daysAgo: 9,  description: "Donation for lab equipment" },
+    { type: "EXPENSE", category: "SALARIES",         amount: 1800000, daysAgo: 12, description: "Monthly salaries — non-teaching staff", reference: "PAY-2026-09" },
+    { type: "EXPENSE", category: "UTILITIES",        amount: 215000,  daysAgo: 8,  description: "Electricity and internet bills" },
+    { type: "EXPENSE", category: "MAINTENANCE",      amount: 96000,   daysAgo: 5,  description: "Classroom repairs and paint" },
+    { type: "EXPENSE", category: "SCHOLARSHIPS",     amount: 120000,  daysAgo: 3,  description: "Merit scholarships — this semester" },
+  ];
+  await prisma.fundEntry.createMany({
+    data: fundRows.map((f) => ({
+      type: f.type, category: f.category, source: f.source ?? null, amount: f.amount,
+      entryDate: dayOffset(-f.daysAgo), description: f.description, reference: f.reference ?? null, recordedById: fundBy,
+    })),
+  });
 
   // ── 10. Library ────────────────────────────────────────────
   console.log("   📖 Library...");
@@ -893,7 +943,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
      HOD            hod.cs  /  hod.ba
      Teachers       teacher.ayesha  teacher.usman  teacher.sana  teacher.bilal  teacher.hamza  teacher.maryam
      Head clerk     headclerk
-     Clerks         clerk.kamran  clerk.hina
+     Assistants     clerk.kamran (fee records, collection, reports)  clerk.hina (student records, verification, fund)
      Complaints     complaints
      Librarian      librarian
      Students       ali.raza  fatima.noor  omar.farooq (low attendance)  ahmed.bashir (sem 3)  saad.chaudhry (BBA)  ...

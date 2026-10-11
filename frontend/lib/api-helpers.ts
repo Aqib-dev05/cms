@@ -26,3 +26,18 @@ export async function openPdf(url: string): Promise<void> {
   window.open(blobUrl, "_blank", "noopener");
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
+
+/** Download a binary endpoint (xlsx / pdf) and save it, using the server's file name when it sends one. */
+export async function downloadFile(url: string, params: object | undefined, fallbackName: string): Promise<void> {
+  const res = await api.get<Blob>(url, { params, responseType: "blob" });
+  const disposition = String(res.headers["content-disposition"] ?? "");
+  const name = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName;
+  const blobUrl = URL.createObjectURL(res.data);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+}

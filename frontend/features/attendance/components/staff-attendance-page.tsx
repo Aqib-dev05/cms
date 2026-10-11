@@ -10,6 +10,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { ExportMenu } from "@/components/shared/export-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionSelect } from "@/components/shared/section-select";
 import { Badge } from "@/components/ui/badge";
@@ -210,7 +211,7 @@ export function StaffAttendancePage() {
   const [tab, setTab] = useState("mark");
   return (
     <>
-      <PageHeader title="Attendance" description="Mark today's class, fix past records and spot students at risk." />
+      <PageHeader title="Attendance" description="Mark today's class, fix past records and spot students at risk." actions={sectionId ? <ExportMenu resource="section-attendance" label="Export section" params={{ sectionId }} /> : undefined} />
       <div className="mb-6 max-w-xl space-y-2">
         <Label htmlFor="att-section">Section</Label>
         <SectionSelect id="att-section" sections={isLoading ? [] : sections} value={sectionId} onChange={setSectionId} activeOnly={false} placeholder={isLoading ? "Loading sections…" : "Select a section"} />
