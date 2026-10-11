@@ -1,6 +1,12 @@
 import type { Prisma, RoleName } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { emitToUser, SOCKET_EVENTS } from "../../lib/socket";
+
+/** Push the fresh unread badge number to a user's open tabs. */
+async function pushUnreadCount(userId: string) {
+  const unreadCount = await prisma.notificationRecipient.count({ where: { userId, isRead: false } });
+  emitToUser(userId, SOCKET_EVENTS.UNREAD_COUNT, { unreadCount });
+}
 import { AppError } from "../../utils/app-error";
 
 export interface SendNotificationDto {
@@ -36,6 +42,7 @@ export async function sendNotification(dto: SendNotificationDto) {
       data:    dto.data,
     });
   }
+  await Promise.all(dto.recipientIds.map(pushUnreadCount));
 
   return notification;
 }
@@ -94,10 +101,12 @@ export async function markAsRead(userId: string, notificationId: string) {
   if (!record) throw AppError.notFound("Notification not found");
   if (record.userId !== userId) throw AppError.forbidden();
 
-  return prisma.notificationRecipient.update({
+  const updated = await prisma.notificationRecipient.update({
     where: { notificationId_userId: { notificationId, userId } },
     data:  { isRead: true, readAt: new Date() },
   });
+  await pushUnreadCount(userId);
+  return updated;
 }
 
 export async function markAllAsRead(userId: string) {
@@ -105,6 +114,7 @@ export async function markAllAsRead(userId: string) {
     where: { userId, isRead: false },
     data:  { isRead: true, readAt: new Date() },
   });
+  await pushUnreadCount(userId);
   return { updated: result.count };
 }
 

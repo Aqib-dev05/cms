@@ -1,6 +1,9 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils/app-error";
 import { generateInvoiceNo } from "../../utils/reg-no";
+import { emitToRole, emitToUser, SOCKET_EVENTS } from "../../lib/socket";
+
+const FINANCE_ROLES = ["ADMIN", "HEAD_CLERK", "CLERK"] as const;
 
 export interface CreateFeeTypeDto  { name: string; description?: string; }
 export interface UpdateFeeTypeDto  { name?: string; description?: string; isActive?: boolean; }
@@ -180,7 +183,7 @@ export async function createInvoice(dto: CreateInvoiceDto) {
   const totalAmount = dto.items.reduce((sum, item) => sum + item.amount, 0);
   const invoiceNo   = await generateInvoiceNo();
 
-  return prisma.feeInvoice.create({
+  const invoice = await prisma.feeInvoice.create({
     data: {
       invoiceNo,
       studentProfileId: dto.studentProfileId,
@@ -192,9 +195,20 @@ export async function createInvoice(dto: CreateInvoiceDto) {
       remarks:          dto.remarks,
     },
     include: {
-      studentProfile: { select: { registrationNo: true, firstName: true, lastName: true } },
+      studentProfile: { select: { userId: true, registrationNo: true, firstName: true, lastName: true } },
     },
   });
+
+  const payload = {
+    invoiceId: invoice.id,
+    invoiceNo: invoice.invoiceNo,
+    totalAmount: invoice.totalAmount,
+    dueDate: invoice.dueDate,
+  };
+  emitToUser(invoice.studentProfile.userId, SOCKET_EVENTS.INVOICE_CREATED, payload);
+  for (const role of FINANCE_ROLES) emitToRole(role, SOCKET_EVENTS.INVOICE_CREATED, payload);
+
+  return invoice;
 }
 
 // ─── Payments ─────────────────────────────────────────────────
@@ -202,7 +216,11 @@ export async function createInvoice(dto: CreateInvoiceDto) {
 export async function recordPayment(dto: RecordPaymentDto, receivedById: string) {
   const invoice = await prisma.feeInvoice.findUnique({
     where: { id: dto.invoiceId },
-    include: { payments: true, discounts: true },
+    include: {
+      payments: true,
+      discounts: true,
+      studentProfile: { select: { userId: true } },
+    },
   });
   if (!invoice) throw AppError.notFound("Invoice not found");
 
@@ -239,6 +257,16 @@ export async function recordPayment(dto: RecordPaymentDto, receivedById: string)
       },
     }),
   ]);
+
+  const payload = {
+    invoiceId:  invoice.id,
+    invoiceNo:  invoice.invoiceNo,
+    amount:     dto.amount,
+    status:     newStatus,
+    dueAmount:  Math.max(0, newDue),
+  };
+  emitToUser(invoice.studentProfile.userId, SOCKET_EVENTS.PAYMENT_RECEIVED, payload);
+  for (const role of FINANCE_ROLES) emitToRole(role, SOCKET_EVENTS.PAYMENT_RECEIVED, payload);
 
   return payment;
 }

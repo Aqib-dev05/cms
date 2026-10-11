@@ -3,6 +3,14 @@ import { prisma } from "../../config/database";
 import { AppError } from "../../utils/app-error";
 import { generateApplicationNo, generateRegistrationNo, generateCollegeEmail } from "../../utils/reg-no";
 import { env } from "../../config/env";
+import { emitToRole, SOCKET_EVENTS } from "../../lib/socket";
+
+const ADMISSION_ROLES = ["ADMIN", "HEAD_CLERK", "CLERK"] as const;
+
+function notifyAdmissionStaff(app: { id: string; applicationNo: string; status: string }) {
+  const payload = { id: app.id, applicationNo: app.applicationNo, status: app.status };
+  for (const role of ADMISSION_ROLES) emitToRole(role, SOCKET_EVENTS.APPLICATION_STATUS, payload);
+}
 
 export interface SubmitApplicationDto {
   programId:    string;
@@ -101,6 +109,8 @@ export async function submitApplication(dto: SubmitApplicationDto) {
     data: { applicationId: application.id, toStatus: "SUBMITTED", note: "Application submitted" },
   });
 
+  notifyAdmissionStaff(application);
+
   return application;
 }
 
@@ -133,7 +143,9 @@ export async function reviewApplication(id: string, dto: ReviewApplicationDto, r
     }),
   ]);
 
-  return prisma.application.findUnique({ where: { id } });
+  const updated = await prisma.application.findUnique({ where: { id } });
+  if (updated) notifyAdmissionStaff(updated);
+  return updated;
 }
 
 export async function approveAndEnroll(id: string, reviewedById: string) {
@@ -207,6 +219,8 @@ export async function approveAndEnroll(id: string, reviewedById: string) {
       },
     }),
   ]);
+
+  notifyAdmissionStaff({ id, applicationNo: application.applicationNo, status: "ENROLLED" });
 
   return {
     user: { id: user.id, username, email: application.email, collegeEmail },

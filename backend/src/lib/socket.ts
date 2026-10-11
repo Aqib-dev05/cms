@@ -73,6 +73,10 @@ export function emitToRole(roleName: string, event: string, payload: unknown) {
   getIO().to(`role:${roleName}`).emit(event, payload);
 }
 
+export function emitToUsers(userIds: string[], event: string, payload: unknown) {
+  for (const userId of new Set(userIds)) emitToUser(userId, event, payload);
+}
+
 export function emitToAll(event: string, payload: unknown) {
   getIO().emit(event, payload);
 }

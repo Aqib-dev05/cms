@@ -1,5 +1,54 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils/app-error";
+import { emitToAll, emitToRole, emitToUsers, SOCKET_EVENTS } from "../../lib/socket";
+
+const STAFF_ROLES = ["ADMIN", "HOD", "TEACHER", "HEAD_CLERK", "CLERK", "COMPLAINT_OFFICER", "LIBRARIAN"] as const;
+
+/** Push a "notice published" event to everyone the notice is aimed at. */
+async function broadcastNotice(notice: {
+  id: string; title: string; category: string | null;
+  audience: "ALL" | "STUDENTS" | "STAFF" | "DEPARTMENT" | "PROGRAM";
+  departmentId: string | null; programId: string | null;
+}) {
+  const payload = { id: notice.id, title: notice.title, category: notice.category, audience: notice.audience };
+  const ev = SOCKET_EVENTS.NOTICE_PUBLISHED;
+
+  switch (notice.audience) {
+    case "ALL":
+      emitToAll(ev, payload);
+      break;
+    case "STUDENTS":
+      emitToRole("STUDENT", ev, payload);
+      break;
+    case "STAFF":
+      for (const role of STAFF_ROLES) emitToRole(role, ev, payload);
+      break;
+    case "DEPARTMENT": {
+      if (!notice.departmentId) break;
+      const users = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { staffProfile:   { departmentId: notice.departmentId } },
+            { studentProfile: { program: { departmentId: notice.departmentId } } },
+          ],
+        },
+        select: { id: true },
+      });
+      emitToUsers(users.map((u: { id: string }) => u.id), ev, payload);
+      break;
+    }
+    case "PROGRAM": {
+      if (!notice.programId) break;
+      const users = await prisma.user.findMany({
+        where: { isActive: true, studentProfile: { programId: notice.programId } },
+        select: { id: true },
+      });
+      emitToUsers(users.map((u: { id: string }) => u.id), ev, payload);
+      break;
+    }
+  }
+}
 
 export interface CreateNoticeDto {
   title:        string;
@@ -74,7 +123,7 @@ export async function getNoticeById(id: string) {
 }
 
 export async function createNotice(dto: CreateNoticeDto, createdById: string) {
-  return prisma.notice.create({
+  const notice = await prisma.notice.create({
     data: {
       title:       dto.title,
       content:     dto.content,
@@ -88,6 +137,8 @@ export async function createNotice(dto: CreateNoticeDto, createdById: string) {
       publishedAt: dto.publishNow ? new Date() : null,
     },
   });
+  if (notice.isPublished) await broadcastNotice(notice);
+  return notice;
 }
 
 export async function updateNotice(id: string, dto: UpdateNoticeDto) {
@@ -100,10 +151,12 @@ export async function publishNotice(id: string) {
   const notice = await prisma.notice.findUnique({ where: { id } });
   if (!notice) throw AppError.notFound("Notice not found");
   if (notice.isPublished) throw AppError.badRequest("Notice is already published");
-  return prisma.notice.update({
+  const published = await prisma.notice.update({
     where: { id },
     data:  { isPublished: true, publishedAt: new Date() },
   });
+  await broadcastNotice(published);
+  return published;
 }
 
 export async function deleteNotice(id: string) {

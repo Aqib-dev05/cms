@@ -53,6 +53,23 @@ export function SocketProvider() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount });
     };
 
+    // Data-change events → just refresh the affected lists (the backend already scopes who receives them).
+    const refetchers: Array<[string, readonly unknown[]]> = [
+      [SOCKET_EVENTS.FINANCE_INVOICE_CREATED, queryKeys.finance.all],
+      [SOCKET_EVENTS.FINANCE_PAYMENT_RECEIVED, queryKeys.finance.all],
+      [SOCKET_EVENTS.COMPLAINT_ASSIGNED, queryKeys.complaints.all],
+      [SOCKET_EVENTS.COMPLAINT_STATUS_CHANGED, queryKeys.complaints.all],
+      [SOCKET_EVENTS.NOTICE_PUBLISHED, queryKeys.notices.all],
+      [SOCKET_EVENTS.ADMISSION_STATUS_CHANGED, queryKeys.admissions.all],
+    ];
+    const handlers = refetchers.map(([event, queryKey]) => {
+      const handler = () => {
+        queryClient.invalidateQueries({ queryKey });
+      };
+      socket.on(event, handler);
+      return [event, handler] as const;
+    });
+
     socket.on("connect", onConnect);
     socket.on("connect_error", onConnectError);
     socket.on(SOCKET_EVENTS.NOTIFICATION, onNotification);
@@ -63,6 +80,7 @@ export function SocketProvider() {
       socket.off("connect_error", onConnectError);
       socket.off(SOCKET_EVENTS.NOTIFICATION, onNotification);
       socket.off(SOCKET_EVENTS.NOTIFICATION_UNREAD_COUNT, onUnreadCount);
+      for (const [event, handler] of handlers) socket.off(event, handler);
     };
   }, [authed, queryClient]);
 

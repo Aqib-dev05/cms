@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
 import { AppError } from "../../utils/app-error";
+import { emitToRole, emitToUsers, SOCKET_EVENTS } from "../../lib/socket";
 
 export interface CreateComplaintDto {
   title:       string;
@@ -128,6 +129,11 @@ export async function createComplaint(dto: CreateComplaintDto, createdById: stri
     },
   });
 
+  // Auto-routed: tell the responsible role (and admins) a new complaint arrived
+  const routed = { id: complaint.id, title: complaint.title, status: complaint.status };
+  emitToRole(complaint.category.routeToRole, SOCKET_EVENTS.COMPLAINT_ASSIGNED, routed);
+  if (complaint.category.routeToRole !== "ADMIN") emitToRole("ADMIN", SOCKET_EVENTS.COMPLAINT_ASSIGNED, routed);
+
   return complaint;
 }
 
@@ -158,7 +164,16 @@ export async function assignComplaint(id: string, dto: AssignComplaintDto, assig
     }),
   ]);
 
-  return prisma.complaint.findUnique({ where: { id } });
+  const updated = await prisma.complaint.findUnique({ where: { id } });
+
+  emitToUsers([dto.assignedToId], SOCKET_EVENTS.COMPLAINT_ASSIGNED, {
+    id, title: complaint.title, status: "UNDER_REVIEW",
+  });
+  emitToUsers([complaint.createdById], SOCKET_EVENTS.COMPLAINT_STATUS, {
+    id, title: complaint.title, status: "UNDER_REVIEW",
+  });
+
+  return updated;
 }
 
 export async function updateComplaintStatus(id: string, dto: UpdateStatusDto, changedById: string) {
@@ -185,7 +200,14 @@ export async function updateComplaintStatus(id: string, dto: UpdateStatusDto, ch
     }),
   ]);
 
-  return prisma.complaint.findUnique({ where: { id } });
+  const updated = await prisma.complaint.findUnique({ where: { id } });
+
+  const recipients = [complaint.createdById, ...(complaint.assignedToId ? [complaint.assignedToId] : [])];
+  emitToUsers(recipients, SOCKET_EVENTS.COMPLAINT_STATUS, {
+    id, title: complaint.title, status: dto.status,
+  });
+
+  return updated;
 }
 
 export async function addComment(id: string, dto: AddCommentDto, actor: ComplaintActor) {
